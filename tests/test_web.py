@@ -591,6 +591,24 @@ def test_dashboard_renders_grid_and_endpoint_wiring() -> None:
     assert "set_index" in html
 
 
+def test_dashboard_injects_per_slot_highlight_colors() -> None:
+    """The dashboard's class lists are colored to match the loot filter, so what
+    the player sees highlighted on the ground matches the dashboard."""
+    from poecraft.filter.generator import CLASS_COLORS
+
+    _reset_state()
+    client = _client()
+
+    html = client.get("/").text
+    # every class name and its filter bg color are injected as a JS mapping
+    for cls, style in CLASS_COLORS.items():
+        assert cls.value in html
+        assert style["bg"].lower() in html.lower()
+    # jewelry (rings/amulets/belts) shares one color -> it repeats >= 3x
+    jewelry_color = CLASS_COLORS[ItemClass.RINGS]["bg"].lower()
+    assert html.lower().count(jewelry_color) >= 3
+
+
 def test_dashboard_renders_regardless_of_cwd(tmp_path, monkeypatch) -> None:
     """Template lookup must not depend on process CWD.
 

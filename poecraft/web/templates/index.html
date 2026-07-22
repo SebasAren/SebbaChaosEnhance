@@ -179,6 +179,11 @@ const PALETTE = ["#e94560", "#4ade80", "#38bdf8", "#fbbf24", "#a78bfa", "#fb7185
 const SURPLUS = "#6b7280";
 const GRID = 24;
 
+// Per item-class highlight color, mirroring the loot filter so the dashboard's
+// class lists match what gets highlighted on the ground. Injected server-side
+// from the generator's CLASS_COLORS (enum value -> #RRGGBBAA).
+const SLOT_COLORS = {{ slot_colors | tojson }};
+
 function colorFor(setIndex) {
   if (setIndex === null || setIndex === undefined) return SURPLUS;
   return PALETTE[setIndex % PALETTE.length];
@@ -223,15 +228,19 @@ function renderStatus(data) {
   const countsTbl = document.getElementById('counts-table');
   countsTbl.innerHTML = '';
   for (const [cls, n] of Object.entries(data.item_counts || {})) {
+    const bg = SLOT_COLORS[cls] || '#0f3460';
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + cls + '</td><td>' + n + '</td>';
+    tr.innerHTML = '<td><span class="swatch" style="background:' + bg + ';"></span> ' + cls + '</td><td>' + n + '</td>';
     countsTbl.appendChild(tr);
   }
 
   const missing = document.getElementById('missing-classes');
   const missingList = data.missing_classes || [];
   missing.innerHTML = missingList.length
-    ? missingList.map(c => '<span class="pill">' + c + '</span>').join('')
+    ? missingList.map(c => {
+        const bg = SLOT_COLORS[c] || '#0f3460';
+        return '<span class="pill" style="background:' + bg + ';color:#fff;">' + c + '</span>';
+      }).join('')
     : '<em>none — all classes covered</em>';
 
   document.getElementById('last-refresh').textContent = data.last_refresh || 'never';

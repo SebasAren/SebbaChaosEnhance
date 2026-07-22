@@ -12,12 +12,15 @@ from poecraft import __version__
 from poecraft.api.auth import SessionAuth
 from poecraft.api.client import PoeApiClient
 from poecraft.config import Config, get_config, save_config
+from poecraft.filter.generator import CLASS_COLORS
 from poecraft.state import get_state
 
 router = APIRouter()
 # Resolve relative to this module so it works regardless of the process CWD
 # (the installed tool runs from $HOME under systemd, not the project root).
-templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
+templates = Jinja2Templates(
+    directory=str(Path(__file__).resolve().parent / "templates")
+)
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -30,6 +33,9 @@ async def dashboard(request: Request):
         context={
             "config": config,
             "version": __version__,
+            # Item-class -> loot-filter highlight color, so the dashboard's
+            # class lists match what the player sees highlighted on the ground.
+            "slot_colors": {cls.value: c["bg"] for cls, c in CLASS_COLORS.items()},
         },
     )
 
@@ -148,12 +154,18 @@ async def api_browse(path: str | None = None, ext: str | None = None):
                 entries.append({"name": child.name, "type": "dir", "path": str(child)})
             elif child.is_file():
                 if ext is None or child.suffix.lower() == ext.lower():
-                    entries.append({"name": child.name, "type": "file", "path": str(child)})
+                    entries.append(
+                        {"name": child.name, "type": "file", "path": str(child)}
+                    )
         except (PermissionError, OSError):
             continue  # unreadable entry — skip, don't abort the listing
 
     parent = target.parent if target.parent != target else None
-    return {"path": str(target), "parent": str(parent) if parent else None, "entries": entries}
+    return {
+        "path": str(target),
+        "parent": str(parent) if parent else None,
+        "entries": entries,
+    }
 
 
 async def resolve_client(app_state) -> PoeApiClient:
@@ -224,7 +236,8 @@ async def api_tabs(request: Request):
         return {
             "tabs": [],
             "error": (
-                "Missing " + " and ".join(missing)
+                "Missing "
+                + " and ".join(missing)
                 + " — fill these in, click Save Config, then reopen the tab picker."
             ),
         }
