@@ -8,6 +8,7 @@ the cycle is unit-testable without network or filesystem.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import Any
 
@@ -22,6 +23,9 @@ class RecipeState:
     def __init__(self) -> None:
         self.current: RecipeStatus | None = None
         self.last_refresh: datetime | None = None
+        # SSE subscribers: each connected /api/events client owns one queue,
+        # which we push the latest payload onto whenever the state changes.
+        self._subscribers: list[asyncio.Queue[dict]] = []
 
     async def refresh(self, client: Any, config: Config, filter_writer: Any) -> RecipeStatus:
         """Run one refresh cycle and store the resulting status.
@@ -59,7 +63,52 @@ class RecipeState:
 
         self.current = status
         self.last_refresh = datetime.now()
+        self._notify()
         return status
+
+    def to_payload(self) -> dict:
+        """JSON-serializable status payload (the /api/status contract).
+
+        Centralized here so both the REST endpoints and the SSE stream render
+        an identical shape.
+        """
+        status = self.current
+        if status is None:
+            return {
+                "completed_sets": 0,
+                "item_counts": {},
+                "missing_classes": [],
+                "grid": {"items": []},
+                "last_refresh": None,
+            }
+        return {
+            "completed_sets": status.completed_sets,
+            "item_counts": {cls.value: n for cls, n in status.item_counts.items()},
+            "missing_classes": sorted(cls.value for cls in status.missing_classes),
+            "grid": status.to_grid(),
+            "last_refresh": self.last_refresh.isoformat() if self.last_refresh else None,
+        }
+
+    def subscribe(self) -> asyncio.Queue[dict]:
+        """Register a queue that receives the payload on every refresh."""
+        q: asyncio.Queue[dict] = asyncio.Queue()
+        self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue[dict]) -> None:
+        """Remove a subscriber queue (no-op if already removed)."""
+        try:
+            self._subscribers.remove(q)
+        except ValueError:
+            pass
+
+    def _notify(self) -> None:
+        """Push the current payload to every subscriber (non-blocking)."""
+        if not self._subscribers:
+            return
+        payload = self.to_payload()
+        for q in self._subscribers:
+            q.put_nowait(payload)
 
 
 _state: RecipeState | None = None

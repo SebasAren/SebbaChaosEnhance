@@ -7,6 +7,7 @@ and filter writer mocked; grid data prep is validated structurally.
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -207,6 +208,77 @@ def test_state_refresh_skips_filter_when_loot_filter_path_empty() -> None:
 
 
 # ---------------------------------------------------------------------------
+# RecipeState payload + subscriber pub/sub
+# ---------------------------------------------------------------------------
+
+
+def _refresh(
+    state: RecipeState,
+    items: dict[int, list[StashItem]] | None = None,
+) -> RecipeStatus:
+    client = FakeClient(items or {0: [_raw_ring("r1"), _raw_ring("r2")]})
+    writer = FakeFilterWriter()
+    config = Config(recipe_type="chaos", set_threshold=1, loot_filter_path="/tmp/x.filter")
+    return asyncio.run(state.refresh(client, config, writer))
+
+
+def test_state_to_payload_matches_status_contract() -> None:
+    """RecipeState.to_payload() mirrors the /api/status JSON shape."""
+    state = RecipeState()
+    _refresh(state)
+
+    payload = state.to_payload()
+    assert payload["completed_sets"] == 0
+    assert payload["item_counts"] == {"Rings": 2}
+    assert "Helmets" in payload["missing_classes"]
+    assert payload["grid"]["items"]
+    assert payload["last_refresh"] == state.last_refresh.isoformat()
+
+
+def test_state_to_payload_empty_when_no_refresh_yet() -> None:
+    """A fresh state yields the same empty shape as the /api/status default."""
+    payload = RecipeState().to_payload()
+    assert payload == {
+        "completed_sets": 0,
+        "item_counts": {},
+        "missing_classes": [],
+        "grid": {"items": []},
+        "last_refresh": None,
+    }
+
+
+def test_state_refresh_notifies_subscribers() -> None:
+    """Each subscribe() queue receives the updated payload on refresh."""
+    state = RecipeState()
+    q = state.subscribe()
+    _refresh(state)
+
+    payload = q.get_nowait()  # would raise if nothing was pushed
+    assert payload["item_counts"] == {"Rings": 2}
+    assert payload["last_refresh"] is not None
+    assert q.empty()
+
+
+def test_state_refresh_notifies_all_subscribers() -> None:
+    state = RecipeState()
+    q1 = state.subscribe()
+    q2 = state.subscribe()
+    _refresh(state)
+
+    assert q1.get_nowait()["item_counts"] == {"Rings": 2}
+    assert q2.get_nowait()["item_counts"] == {"Rings": 2}
+
+
+def test_unsubscribed_queue_receives_nothing() -> None:
+    state = RecipeState()
+    q = state.subscribe()
+    state.unsubscribe(q)
+    _refresh(state)
+
+    assert q.empty()
+
+
+# ---------------------------------------------------------------------------
 # HTTP endpoints (FastAPI TestClient)
 # ---------------------------------------------------------------------------
 
@@ -262,6 +334,70 @@ def test_api_refresh_updates_status() -> None:
     assert status["last_refresh"] is not None
     # both rings landed in set 0
     assert [it["set_index"] for it in status["grid"]["items"]] == [0, 0]
+
+
+class _FakeRequest:
+    """Minimal Request stand-in: the SSE loop only calls is_disconnected()."""
+
+    async def is_disconnected(self) -> bool:
+        return False
+
+
+def _sse_data(frame) -> str:
+    """Extract the JSON payload from an SSE ``data:`` line."""
+    text = frame.decode() if isinstance(frame, (bytes, bytearray)) else frame
+    for line in text.splitlines():
+        if line.startswith("data: "):
+            return line[len("data: "):]
+    raise AssertionError("no data line in SSE frame")
+
+
+def test_api_events_catch_up_and_push() -> None:
+    """GET /api/events yields current status on connect, then a frame per refresh.
+
+    Driven by calling the handler directly against its streaming response
+    iterator (rather than TestClient, which can't cleanly cancel an infinite
+    SSE generator), so the push-through-stream path is exercised
+    deterministically without a long-lived connection.
+    """
+    import poecraft.config as cfg_mod
+    from poecraft.web.routes import api_events
+
+    _reset_state()
+    config = Config(
+        recipe_type="chaos",
+        set_threshold=1,
+        stash_tabs=[0],
+        loot_filter_path="/tmp/x.filter",
+    )
+    cfg_mod._config = config
+    client = FakeClient({0: [_raw_ring("r1"), _raw_ring("r2")]})
+    writer = FakeFilterWriter()
+
+    async def drive() -> None:
+        state = get_state()
+        # initial refresh → the catch-up frame carries this data
+        await state.refresh(client, config, writer)
+
+        response = await api_events(_FakeRequest())
+        assert response.media_type.startswith("text/event-stream")
+        assert "X-Accel-Buffering" in response.headers
+        agen = response.body_iterator
+
+        first = await agen.__anext__()  # catch-up
+        payload0 = json.loads(_sse_data(first))
+        assert payload0["item_counts"] == {"Rings": 2}
+        assert payload0["last_refresh"] is not None
+
+        # the next pull blocks until a refresh pushes a new payload
+        pending = asyncio.create_task(agen.__anext__())
+        await state.refresh(client, config, writer)
+        payload1 = json.loads(_sse_data(await pending))
+        assert payload1["item_counts"] == {"Rings": 2}
+
+        await agen.aclose()
+
+    asyncio.run(drive())
 
 
 def test_api_config_valid_body_is_saved(monkeypatch, tmp_path) -> None:

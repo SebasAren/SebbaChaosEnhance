@@ -1,9 +1,10 @@
 """Web UI routes."""
 
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from poecraft.api.auth import SessionAuth
@@ -60,6 +61,43 @@ async def api_refresh(request: Request):
         request.app.state.filter_writer,
     )
     return _status_payload()
+
+
+@router.get("/api/events")
+async def api_events(request: Request):
+    """Server-Sent Events stream that pushes a ``status`` event per refresh.
+
+    On connect we send the current status immediately (so a freshly loaded or
+    reconnected page is caught up without a separate fetch), then one event
+    per subsequent refresh — driven by the logwatch zone-change callback, the
+    manual Refresh button, or the startup refresh alike.
+    """
+    state = get_state()
+
+    async def event_stream():
+        q = state.subscribe()
+        try:
+            yield _sse_frame(state.to_payload())
+            while True:
+                if await request.is_disconnected():
+                    break
+                yield _sse_frame(await q.get())
+        finally:
+            state.unsubscribe(q)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable proxy buffering (nginx)
+        },
+    )
+
+
+def _sse_frame(payload: dict) -> str:
+    """Format one SSE message: a named `status` event with JSON data."""
+    return f"event: status\ndata: {json.dumps(payload)}\n\n"
 
 
 @router.post("/api/config")
@@ -190,20 +228,4 @@ async def api_tabs(request: Request):
 
 def _status_payload() -> dict:
     """Build the JSON-serializable status payload from the current RecipeState."""
-    state = get_state()
-    status = state.current
-    if status is None:
-        return {
-            "completed_sets": 0,
-            "item_counts": {},
-            "missing_classes": [],
-            "grid": {"items": []},
-            "last_refresh": None,
-        }
-    return {
-        "completed_sets": status.completed_sets,
-        "item_counts": {cls.value: n for cls, n in status.item_counts.items()},
-        "missing_classes": sorted(cls.value for cls in status.missing_classes),
-        "grid": status.to_grid(),
-        "last_refresh": state.last_refresh.isoformat() if state.last_refresh else None,
-    }
+    return get_state().to_payload()

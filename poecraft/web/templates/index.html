@@ -546,6 +546,26 @@ function toggleTabsDropdown(force) {
   renderTabsSummary();
 })();
 
+// Initial paint via plain fetch (fast, and a fallback if SSE is blocked).
 fetchStatus();
+
+// Live updates: the server pushes a `status` event on every refresh
+// (zone change from Client.txt, manual Refresh, startup). EventSource
+// auto-reconnects, and on (re)connect the server sends the current status
+// first, so this also keeps the page in sync after any reconnect.
+const evtSource = new EventSource('/api/events');
+evtSource.addEventListener('status', (e) => {
+  try {
+    renderStatus(JSON.parse(e.data));
+  } catch (_) {
+    // ignore a malformed frame; the connection stays open for the next one
+  }
+});
+evtSource.onerror = () => {
+  const el = document.getElementById('last-refresh');
+  if (el && !el.textContent.includes('disconnected')) {
+    el.textContent += ' (live updates disconnected — reconnecting…)';
+  }
+};
 </script>
 {% endblock %}
