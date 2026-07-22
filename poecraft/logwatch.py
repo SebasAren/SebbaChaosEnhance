@@ -119,9 +119,18 @@ class ClientLogWatcher:
             await self.on_zone_change(area)
 
     async def start(self) -> None:
-        """Poll the log in a loop until :meth:`stop` is called or cancelled."""
+        """Poll the log in a loop until :meth:`stop` is called or cancelled.
+
+        Before polling, the read offset is seeded to the current end of the
+        file so pre-existing lines are not replayed (tail -f semantics). Only
+        zone changes appended *after* startup fire the callback.
+        """
         self._running = True
         try:
+            try:
+                self.last_size = self.path.stat().st_size
+            except FileNotFoundError:
+                self.last_size = 0
             while self._running:
                 await self._poll()
                 await asyncio.sleep(self.poll_interval)

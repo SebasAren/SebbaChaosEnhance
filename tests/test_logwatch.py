@@ -176,6 +176,39 @@ def test_poll_truncation_resets_offset_without_spurious_callback(tmp_path: Path)
     assert callback.calls == ["New Area"]
 
 
+def test_start_skips_historical_zone_changes(tmp_path: Path) -> None:
+    """Startup must not replay old zone-change lines from Client.txt.
+
+    Only zone changes appended *after* the watcher starts should fire the
+    callback (tail -f semantics). Replaying history on startup bursts the PoE
+    API and trips rate limiting (HTTP 429).
+    """
+    client_txt = tmp_path / "Client.txt"
+    client_txt.write_text(
+        "[INFO Client 340] : You have entered Old Area 1.\n"
+        "[INFO Client 340] : You have entered Old Area 2.\n"
+    )
+    callback = RecordingCallback()
+    watcher = ClientLogWatcher(
+        client_txt, on_zone_change=callback, poll_interval=0.01
+    )
+
+    async def driver() -> None:
+        task = asyncio.create_task(watcher.start())
+        await asyncio.sleep(0.03)  # let startup seed the offset
+        with open(client_txt, "a") as f:  # append a post-startup zone change
+            f.write("[INFO Client 340] : You have entered New Area.\n")
+        for _ in range(50):
+            await asyncio.sleep(0.02)
+            if callback.calls:
+                break
+        await watcher.stop()
+        await task
+
+    asyncio.run(driver())
+    assert callback.calls == ["New Area"]  # history skipped, only new fires
+
+
 def test_start_stop_lifecycle(tmp_path: Path) -> None:
     client_txt = tmp_path / "Client.txt"
     client_txt.write_text("")  # start empty
