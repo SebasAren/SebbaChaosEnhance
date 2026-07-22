@@ -1,74 +1,211 @@
 {% extends "base.html" %}
 {% block title %}PoECraft — Dashboard{% endblock %}
+
+{% block head %}
+<style>
+  .grid-wrap {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    grid-template-rows: 24px 1fr;
+    gap: 4px;
+    margin-bottom: 1rem;
+  }
+  #grid {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #0f1a33;
+    background-image:
+      linear-gradient(#1b2a4a 1px, transparent 1px),
+      linear-gradient(90deg, #1b2a4a 1px, transparent 1px);
+    background-size: calc(100% / 24) calc(100% / 24);
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .cell {
+    position: absolute;
+    border: 1px solid rgba(0,0,0,0.4);
+    border-radius: 2px;
+    box-sizing: border-box;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+  .legend span { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; }
+  .swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+  .pill {
+    display: inline-block; background: #0f3460; color: #fbbf24;
+    padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; margin: 0.1rem;
+  }
+  label { display: inline-block; min-width: 11rem; }
+  input[type="text"], input[type="password"], input[type="number"], select {
+    background: #0f1a33; color: #e0e0e0; border: 1px solid #0f3460;
+    border-radius: 4px; padding: 0.25rem 0.4rem;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
-    <h2>Status</h2>
-    <p>Server is running. Configure your settings below to get started.</p>
-    <p>League: <strong>{{ config.league }}</strong> | Tabs: <strong>{{ config.stash_tabs | length }} selected</strong> | Recipe: <strong>{{ config.recipe_type }}</strong></p>
+  <h2>Stash Grid (24×24)</h2>
+  <div id="grid"></div>
+  <div class="legend" id="legend"></div>
 </div>
 
 <div class="card">
-    <h2>Item Counts</h2>
-    <table>
-        <tr><th>Item Class</th><th>Count</th><th>Status</th></tr>
-        <tr><td>Helmets</td><td id="count-helmets">-</td><td class="status-warn">pending</td></tr>
-        <tr><td>Body Armours</td><td id="count-chests">-</td><td class="status-warn">pending</td></tr>
-        <tr><td>Gloves</td><td id="count-gloves">-</td><td class="status-warn">pending</td></tr>
-        <tr><td>Boots</td><td id="count-boots">-</td><td class="status-warn">pending</td></tr>
-        <tr><td>Rings</td><td id="count-rings">-</td><td class="status-warn">pending</td></tr>
-        <tr><td>Amulets</td><td id="count-amulets">-</td><td class="status-warn">pending</td></tr>
-        <tr><td>Belts</td><td id="count-belts">-</td><td class="status-warn">pending</td></tr>
-        <tr><td>1H Weapons</td><td id="count-weapons-small">-</td><td class="status-warn">pending</td></tr>
-        <tr><td>2H Weapons</td><td id="count-weapons-big">-</td><td class="status-warn">pending</td></tr>
-    </table>
+  <h2>Status</h2>
+  <p>
+    League: <strong>{{ config.league }}</strong> |
+    Tabs: <strong>{{ config.stash_tabs | length }} selected</strong> |
+    Recipe: <strong>{{ config.recipe_type }}</strong> |
+    Completed sets: <strong id="completed-sets">–</strong>
+  </p>
+  <p>Missing classes: <span id="missing-classes"><em>–</em></span></p>
+  <table>
+    <tr><th>Item Class</th><th>Count</th></tr>
+    <tbody id="counts-table"></tbody>
+  </table>
+  <p style="margin-top:0.5rem;color:#888;">Last refresh: <span id="last-refresh">never</span></p>
 </div>
 
 <div class="card">
-    <h2>Actions</h2>
-    <button class="btn" onclick="refresh()">Refresh Now</button>
-    <span id="last-refresh" style="margin-left: 1rem; color: #888;">Not yet refreshed</span>
+  <h2>Actions</h2>
+  <button class="btn" onclick="refresh()">Refresh Now</button>
 </div>
 
 <div class="card">
-    <h2>Configuration</h2>
-    <form id="config-form">
-        <label>Account Name: <input type="text" name="account_name" value="{{ config.account_name }}"></label><br><br>
-        <label>League: <input type="text" name="league" value="{{ config.league }}"></label><br><br>
-        <label>Session ID: <input type="password" name="session_id" value="{{ config.session_id }}"></label><br><br>
-        <label>Stash Tabs (comma-separated): <input type="text" name="stash_tabs" value="{{ config.stash_tabs | join(',') }}"></label><br><br>
-        <label>Recipe Type:
-            <select name="recipe_type">
-                <option value="chaos" {{ 'selected' if config.recipe_type == 'chaos' }}>Chaos Orb</option>
-                <option value="regal" {{ 'selected' if config.recipe_type == 'regal' }}>Regal Orb</option>
-                <option value="chance" {{ 'selected' if config.recipe_type == 'chance' }}>Orb of Chance</option>
-                <option value="exalted" {{ 'selected' if config.recipe_type == 'exalted' }}>Exalted Orb</option>
-            </select>
-        </label><br><br>
-        <label>Set Threshold: <input type="number" name="set_threshold" value="{{ config.set_threshold }}" min="1" max="20"></label><br><br>
-        <label>Loot Filter Path: <input type="text" name="loot_filter_path" value="{{ config.loot_filter_path }}" size="60"></label><br><br>
-        <label><input type="checkbox" name="include_identified" {{ 'checked' if config.include_identified }}> Include Identified Items</label><br><br>
-        <label>Auto-refresh (seconds): <input type="number" name="refresh_interval" value="{{ config.refresh_interval }}" min="0" max="300"></label><br><br>
-        <button type="submit" class="btn">Save Config</button>
-    </form>
+  <h2>Configuration</h2>
+  <form id="config-form">
+    <label>Account Name:</label><input type="text" name="account_name" value="{{ config.account_name }}"><br><br>
+    <label>League:</label><input type="text" name="league" value="{{ config.league }}"><br><br>
+    <label>Session ID (POESESSID):</label><input type="password" name="session_id" value="{{ config.session_id }}"><br><br>
+    <label>Stash Tabs (comma-separated):</label><input type="text" name="stash_tabs" value="{{ config.stash_tabs | join(',') }}"><br><br>
+    <label>Recipe Type:</label>
+    <select name="recipe_type">
+      <option value="chaos" {{ 'selected' if config.recipe_type == 'chaos' }}>Chaos Orb</option>
+      <option value="regal" {{ 'selected' if config.recipe_type == 'regal' }}>Regal Orb</option>
+      <option value="chance" {{ 'selected' if config.recipe_type == 'chance' }}>Orb of Chance</option>
+      <option value="exalted" {{ 'selected' if config.recipe_type == 'exalted' }}>Exalted Orb</option>
+    </select><br><br>
+    <label>Set Threshold:</label><input type="number" name="set_threshold" value="{{ config.set_threshold }}" min="1" max="20"><br><br>
+    <label>Loot Filter Path:</label><input type="text" name="loot_filter_path" value="{{ config.loot_filter_path }}" size="60"><br><br>
+    <label>Client Log Path:</label><input type="text" name="client_log_path" value="{{ config.client_log_path }}" size="60"><br><br>
+    <label><input type="checkbox" name="include_identified" {{ 'checked' if config.include_identified }} style="min-width:auto;width:auto;"> Include Identified Items</label><br><br>
+    <button type="submit" class="btn">Save Config</button>
+    <span id="config-status" style="margin-left:1rem;color:#888;"></span>
+  </form>
 </div>
 
 <script>
-async function refresh() {
-    document.getElementById('last-refresh').textContent = 'Refreshing...';
-    try {
-        const resp = await fetch('/api/refresh', {method: 'POST'});
-        const data = await resp.json();
-        document.getElementById('last-refresh').textContent = 'Last refresh: ' + new Date().toLocaleTimeString();
-        // Update counts from response
-        if (data.item_counts) {
-            for (const [cls, count] of Object.entries(data.item_counts)) {
-                const el = document.getElementById('count-' + cls.toLowerCase().replace(/_/g, '-'));
-                if (el) el.textContent = count;
-            }
-        }
-    } catch (e) {
-        document.getElementById('last-refresh').textContent = 'Refresh failed: ' + e.message;
-    }
+// Distinct color per recipe set index; gray = unassigned/surplus.
+const PALETTE = ["#e94560", "#4ade80", "#38bdf8", "#fbbf24", "#a78bfa", "#fb7185", "#34d399", "#60a5fa"];
+const SURPLUS = "#6b7280";
+const GRID = 24;
+
+function colorFor(setIndex) {
+  if (setIndex === null || setIndex === undefined) return SURPLUS;
+  return PALETTE[setIndex % PALETTE.length];
 }
+
+function renderGrid(items) {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  for (const it of items) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.style.left = (it.x / GRID * 100) + '%';
+    cell.style.top = (it.y / GRID * 100) + '%';
+    cell.style.width = (it.w / GRID * 100) + '%';
+    cell.style.height = (it.h / GRID * 100) + '%';
+    cell.style.background = colorFor(it.set_index);
+    cell.title = (it.class || 'item') + ' — set ' + (it.set_index === null ? 'surplus' : it.set_index);
+    grid.appendChild(cell);
+  }
+}
+
+function renderLegend(usedIndices) {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '';
+  usedIndices.forEach(idx => {
+    const s = document.createElement('span');
+    s.innerHTML = '<span class="swatch" style="background:' + colorFor(idx) + '"></span>Set ' + idx;
+    legend.appendChild(s);
+  });
+  const surp = document.createElement('span');
+  surp.innerHTML = '<span class="swatch" style="background:' + SURPLUS + '"></span>Surplus';
+  legend.appendChild(surp);
+}
+
+function renderStatus(data) {
+  const items = (data.grid && data.grid.items) || [];
+  renderGrid(items);
+  renderLegend([...new Set(items.map(i => i.set_index).filter(i => i !== null && i !== undefined))]);
+
+  document.getElementById('completed-sets').textContent = data.completed_sets ?? 0;
+
+  const countsTbl = document.getElementById('counts-table');
+  countsTbl.innerHTML = '';
+  for (const [cls, n] of Object.entries(data.item_counts || {})) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + cls + '</td><td>' + n + '</td>';
+    countsTbl.appendChild(tr);
+  }
+
+  const missing = document.getElementById('missing-classes');
+  const missingList = data.missing_classes || [];
+  missing.innerHTML = missingList.length
+    ? missingList.map(c => '<span class="pill">' + c + '</span>').join('')
+    : '<em>none — all classes covered</em>';
+
+  document.getElementById('last-refresh').textContent = data.last_refresh || 'never';
+}
+
+async function fetchStatus() {
+  try {
+    const resp = await fetch('/api/status');
+    renderStatus(await resp.json());
+  } catch (e) {
+    document.getElementById('last-refresh').textContent = 'status fetch failed: ' + e.message;
+  }
+}
+
+async function refresh() {
+  document.getElementById('last-refresh').textContent = 'refreshing…';
+  try {
+    const resp = await fetch('/api/refresh', { method: 'POST' });
+    renderStatus(await resp.json());
+  } catch (e) {
+    document.getElementById('last-refresh').textContent = 'refresh failed: ' + e.message;
+  }
+}
+
+document.getElementById('config-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const form = ev.target;
+  const status = document.getElementById('config-status');
+  const body = {
+    account_name: form.account_name.value,
+    league: form.league.value,
+    session_id: form.session_id.value,
+    stash_tabs: form.stash_tabs.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)),
+    recipe_type: form.recipe_type.value,
+    set_threshold: parseInt(form.set_threshold.value, 10),
+    loot_filter_path: form.loot_filter_path.value,
+    client_log_path: form.client_log_path.value,
+    include_identified: form.include_identified.checked,
+  };
+  status.textContent = 'saving…';
+  try {
+    const resp = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    status.textContent = resp.ok ? 'saved' : 'error ' + resp.status;
+  } catch (e) {
+    status.textContent = 'save failed: ' + e.message;
+  }
+});
+
+fetchStatus();
 </script>
 {% endblock %}

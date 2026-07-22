@@ -4,160 +4,160 @@
   "context": "PoECraft v1. The single dashboard page (settled in grill: fold overlay into the dashboard; delete overlay.html) + endpoint wiring + the refresh loop. PRIMARY surface is the quad-tab grid renderer (24x24): each item drawn at its x/y/w/h, colored by its assigned recipe set (per-item set_index from RecipeSet.items / unassigned_items via recipe-core). Endpoints: GET / (dashboard), GET /api/status (RecipeStatus JSON with per-item set_index), POST /api/refresh (fetch -> classify -> sets -> update_filter), POST /api/config (validate + save), GET /api/leagues, GET /api/tabs. Refresh is triggered by logwatch on zone change, wired in main.py lifespan; an in-memory RecipeState holds current status. Depends on recipe-core, filter-rules, logwatch. Endpoint contracts + data prep are testable via FastAPI TestClient with the client + filter writer mocked; grid HTML is validated structurally/manually.",
   "architecture": "poecraft/state.py (new): RecipeState singleton — current RecipeStatus | None, last_refresh; async refresh(client, config, filter_writer). poecraft/recipe/sets.py addition: RecipeStatus.to_grid() -> dict with items:[{id,x,y,w,h,set_index,class}] (set_index from in_progress sets; unassigned => None). poecraft/web/routes.py: GET / renders index.html with config; GET /api/status returns RecipeState JSON (to_grid + counts + missing_classes + last_refresh); POST /api/refresh runs refresh(); POST /api/config validates + save_config; GET /api/leagues proxies client.get_leagues; GET /api/tabs proxies client.get_stash_tabs; GET /overlay -> RedirectResponse('/'). poecraft/web/templates/index.html: JS fetches /api/status, renders 24x24 grid colored by set_index, shows missing classes + counts + last_refresh; settings form POSTs /api/config; refresh button POSTs /api/refresh. main.py lifespan: build client + RecipeState + ClientLogWatcher(on_zone_change -> state.refresh); start watcher; initial refresh; graceful stop. Delete poecraft/web/templates/overlay.html.",
   "created": "2026-07-22T14:55:43.021Z",
-  "updated": "2026-07-22T14:55:43.037Z",
+  "updated": "2026-07-22T16:30:17.332Z",
   "steps": [
     {
       "index": 1,
       "name": "RecipeStatus.to_grid — per-item set_index for coloring",
       "red": {
         "description": "In tests/test_web.py, build a RecipeStatus with 2 sets (set 0 has a ring at x/y/w/h; set 1 has a helmet) + 1 unassigned item; to_grid() returns items where the ring has set_index 0, helmet set_index 1, unassigned set_index None, each carrying x/y/w/h/class. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Add RecipeStatus.to_grid() in poecraft/recipe/sets.py (scan in_progress sets for set_index; unassigned => None). Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 2,
       "name": "RecipeState store + refresh() with mocked client/writer",
       "red": {
         "description": "RecipeState.refresh with a fake client returning fixture items and a fake filter update_filter -> state.current is set, last_refresh set, update_filter called with the status's missing_classes. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement poecraft/state.py: RecipeState singleton + async refresh(client, config, filter_writer) (get_all_selected_tabs -> filter_stash_items -> generate_sets -> update_filter -> store). Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 3,
       "name": "GET /api/status — returns current status JSON",
       "red": {
         "description": "FastAPI TestClient GET /api/status on an empty RecipeState returns counts/missing/grid shape (empty lists). Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Wire the endpoint in poecraft/web/routes.py reading RecipeState. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 4,
       "name": "POST /api/refresh — triggers refresh",
       "red": {
         "description": "TestClient POST /api/refresh with mocked client/writer -> 200; subsequent GET /api/status reflects refreshed data. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Wire endpoint to RecipeState.refresh. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 5,
       "name": "POST /api/config — validate + save",
       "red": {
         "description": "TestClient POST /api/config with a valid body -> saved to a tmp config path; invalid body -> 422. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Wire save_config (use a configurable config path). Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 6,
       "name": "GET /api/leagues + GET /api/tabs — proxy client (mocked)",
       "red": {
         "description": "With a mocked PoeApiClient, /api/leagues returns the league list and /api/tabs returns tab metadata. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Wire both endpoints. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 7,
       "name": "main.py lifespan — wire client + state + logwatch + initial refresh (structural/integration)",
       "red": {
         "description": "none",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement lifespan: build PoeApiClient from config; create RecipeState; ClientLogWatcher(path=resolve_log_path(config), on_zone_change=lambda area: asyncio.create_task(state.refresh(...))); start watcher; run an initial refresh on startup; stop watcher on shutdown. Smoke via TestClient lifespan if feasible, else manual.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 8,
       "name": "grid renderer template (structural/manual)",
       "red": {
         "description": "none",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Update poecraft/web/templates/index.html: JS fetches /api/status, renders a 24x24 grid, colors each item cell by set_index (None = gray surplus), shows missing classes + per-class counts + last_refresh; settings form POSTs /api/config; refresh button POSTs /api/refresh. Verify manually in a browser.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 9,
       "name": "delete overlay.html; /overlay redirect (structural)",
       "red": {
         "description": "none",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Delete poecraft/web/templates/overlay.html; change GET /overlay to RedirectResponse(url='/'); remove its template render. Verify /overlay 302s to /.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     }
   ],
   "notes": [],

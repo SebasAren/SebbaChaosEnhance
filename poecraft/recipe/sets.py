@@ -195,6 +195,36 @@ class RecipeStatus:
     item_counts: dict[ItemClass, int]
     unassigned_items: list[EnhancedItem]
 
+    def to_grid(self) -> dict:
+        """Flatten to a grid-friendly dict: items with per-item set_index.
+
+        Items in ``in_progress`` sets carry their set index (0-based); items in
+        ``unassigned_items`` carry ``None``. Each item exposes id, geometry
+        (x/y/w/h), set_index, and its derived class string.
+        """
+        items: list[dict] = []
+        for set_index, recipe_set in enumerate(self.in_progress):
+            for cls, assigned in recipe_set.items.items():
+                for item in assigned:
+                    items.append(self._grid_item(item, set_index))
+        for item in self.unassigned_items:
+            items.append(self._grid_item(item, None))
+        return {"items": items}
+
+    @staticmethod
+    def _grid_item(item: EnhancedItem, set_index: int | None) -> dict:
+        return {
+            "id": item.id,
+            "x": item.x,
+            "y": item.y,
+            "w": item.w,
+            "h": item.h,
+            "set_index": set_index,
+            "class": item.derived_item_class.value
+            if item.derived_item_class is not None
+            else None,
+        }
+
 
 def _sort_key_for_fill(item: EnhancedItem):
     """Two-hand weapons first, then by item class."""
