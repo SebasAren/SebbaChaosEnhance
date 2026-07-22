@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}PoECraft — Dashboard{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Status</h2>
+    <p>Server is running. Configure your settings below to get started.</p>
+    <p>League: <strong>{{ config.league }}</strong> | Tabs: <strong>{{ config.stash_tabs | length }} selected</strong> | Recipe: <strong>{{ config.recipe_type }}</strong></p>
+</div>
+
+<div class="card">
+    <h2>Item Counts</h2>
+    <table>
+        <tr><th>Item Class</th><th>Count</th><th>Status</th></tr>
+        <tr><td>Helmets</td><td id="count-helmets">-</td><td class="status-warn">pending</td></tr>
+        <tr><td>Body Armours</td><td id="count-chests">-</td><td class="status-warn">pending</td></tr>
+        <tr><td>Gloves</td><td id="count-gloves">-</td><td class="status-warn">pending</td></tr>
+        <tr><td>Boots</td><td id="count-boots">-</td><td class="status-warn">pending</td></tr>
+        <tr><td>Rings</td><td id="count-rings">-</td><td class="status-warn">pending</td></tr>
+        <tr><td>Amulets</td><td id="count-amulets">-</td><td class="status-warn">pending</td></tr>
+        <tr><td>Belts</td><td id="count-belts">-</td><td class="status-warn">pending</td></tr>
+        <tr><td>1H Weapons</td><td id="count-weapons-small">-</td><td class="status-warn">pending</td></tr>
+        <tr><td>2H Weapons</td><td id="count-weapons-big">-</td><td class="status-warn">pending</td></tr>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Actions</h2>
+    <button class="btn" onclick="refresh()">Refresh Now</button>
+    <span id="last-refresh" style="margin-left: 1rem; color: #888;">Not yet refreshed</span>
+</div>
+
+<div class="card">
+    <h2>Configuration</h2>
+    <form id="config-form">
+        <label>Account Name: <input type="text" name="account_name" value="{{ config.account_name }}"></label><br><br>
+        <label>League: <input type="text" name="league" value="{{ config.league }}"></label><br><br>
+        <label>Session ID: <input type="password" name="session_id" value="{{ config.session_id }}"></label><br><br>
+        <label>Stash Tabs (comma-separated): <input type="text" name="stash_tabs" value="{{ config.stash_tabs | join(',') }}"></label><br><br>
+        <label>Recipe Type:
+            <select name="recipe_type">
+                <option value="chaos" {{ 'selected' if config.recipe_type == 'chaos' }}>Chaos Orb</option>
+                <option value="regal" {{ 'selected' if config.recipe_type == 'regal' }}>Regal Orb</option>
+                <option value="chance" {{ 'selected' if config.recipe_type == 'chance' }}>Orb of Chance</option>
+                <option value="exalted" {{ 'selected' if config.recipe_type == 'exalted' }}>Exalted Orb</option>
+            </select>
+        </label><br><br>
+        <label>Set Threshold: <input type="number" name="set_threshold" value="{{ config.set_threshold }}" min="1" max="20"></label><br><br>
+        <label>Loot Filter Path: <input type="text" name="loot_filter_path" value="{{ config.loot_filter_path }}" size="60"></label><br><br>
+        <label><input type="checkbox" name="include_identified" {{ 'checked' if config.include_identified }}> Include Identified Items</label><br><br>
+        <label>Auto-refresh (seconds): <input type="number" name="refresh_interval" value="{{ config.refresh_interval }}" min="0" max="300"></label><br><br>
+        <button type="submit" class="btn">Save Config</button>
+    </form>
+</div>
+
+<script>
+async function refresh() {
+    document.getElementById('last-refresh').textContent = 'Refreshing...';
+    try {
+        const resp = await fetch('/api/refresh', {method: 'POST'});
+        const data = await resp.json();
+        document.getElementById('last-refresh').textContent = 'Last refresh: ' + new Date().toLocaleTimeString();
+        // Update counts from response
+        if (data.item_counts) {
+            for (const [cls, count] of Object.entries(data.item_counts)) {
+                const el = document.getElementById('count-' + cls.toLowerCase().replace(/_/g, '-'));
+                if (el) el.textContent = count;
+            }
+        }
+    } catch (e) {
+        document.getElementById('last-refresh').textContent = 'Refresh failed: ' + e.message;
+    }
+}
+</script>
+{% endblock %}

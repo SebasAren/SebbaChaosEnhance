@@ -1,0 +1,22 @@
+# PoE Account
+account_name: ""
+league: "Standard"
+session_id: ""  # POESESSID cookie value
+
+# Stash tabs to scan (list of tab indices, 0-based)
+stash_tabs: []
+
+# Recipe settings
+recipe_type: "chaos"  # chaos | regal | chance | exalted
+set_threshold: 5      # how many sets to track
+include_identified: false
+
+# Loot filter
+loot_filter_path: ""  # absolute path to your .filter file
+
+# Server
+host: "127.0.0.1"
+port: 8420
+
+# Auto-refresh interval in seconds (0 = manual only)
+refresh_interval: 30
