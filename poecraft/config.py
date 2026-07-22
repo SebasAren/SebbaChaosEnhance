@@ -91,3 +91,8 @@ def save_config(config: Config, path: Path | str | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
+    # The file holds the POESESSID secret; restrict to the owner.
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass  # best-effort; don't fail the save over permissions

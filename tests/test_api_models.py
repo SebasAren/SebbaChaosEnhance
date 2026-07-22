@@ -7,7 +7,11 @@ mapping so a regression (every tab showing "Tab 0") is caught immediately.
 
 from __future__ import annotations
 
-from poecraft.api.models import StashItem, StashTabContents, StashTabMetadataResponse, StashTabProps
+from poecraft.api.models import (
+    StashTabContents,
+    StashTabMetadataResponse,
+    StashTabProps,
+)
 from poecraft.recipe.classifier import classify_item
 
 

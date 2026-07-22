@@ -7,7 +7,6 @@ self-hosted tool). The session ID is sent as a cookie on every request.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import httpx
 

@@ -141,8 +141,9 @@ def cli():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    host = args.host or config.host
-    port = args.port or config.port
+    # `or` would reject an explicit --port 0 / --host "" (both falsy).
+    host = args.host if args.host is not None else config.host
+    port = args.port if args.port is not None else config.port
 
     logger.info("Starting server on %s:%d", host, port)
     uvicorn.run(app, host=host, port=port, log_level="info")
