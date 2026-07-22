@@ -142,6 +142,14 @@ uv sync                 # create venv + install deps
 uv run pytest -q        # run the test suite
 ```
 
+## Acknowledgements
+
+PoECraft is a from-scratch, native-Linux reimplementation inspired by the
+[Chaos Recipe Enhancer](https://github.com/ChaosRecipeEnhancer/ChaosRecipeEnhancer)
+(CRE). The recipe-set logic, the highlight-only loot-filter manipulation, and
+the zone-change-triggered refresh all follow CRE's design — thanks to the CRE
+team for the concept.
+
 ---
 
 PoECraft is not affiliated with Grinding Gear Games.
