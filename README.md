@@ -127,8 +127,9 @@ POECRAFT_CONFIG=/path/to/config.yaml poecraft
   filter from scratch. Point `loot_filter_path` at an existing filter file.
 - **Zone-change refresh needs a Client.txt path.** If `client_log_path` is empty
   *and* the Steam install isn't found at the default location, logwatch is
-  disabled and refresh only happens via the **Refresh Now** button or
-  `POST /api/refresh`.
+  disabled — but as long as `refresh_interval` > 0 a periodic refresh still
+  runs every `refresh_interval` seconds. Otherwise refresh only happens via
+  the **Refresh Now** button or `POST /api/refresh`.
 - **Startup does an initial fetch.** With `stash_tabs` set and a valid
   `session_id`, PoECraft fetches the stash once on startup (in addition to each
   zone change).

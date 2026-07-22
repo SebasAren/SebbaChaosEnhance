@@ -22,5 +22,7 @@ client_log_path: ""
 host: "127.0.0.1"
 port: 8420
 
-# Auto-refresh interval in seconds (0 = manual only)
+# Periodic auto-refresh fallback in seconds (0 = manual / zone-change only).
+# Runs alongside the Client.txt zone-change watcher; the only auto-refresh
+# when logwatch is disabled.
 refresh_interval: 30
