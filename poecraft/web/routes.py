@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
+from poecraft import __version__
 from poecraft.api.auth import SessionAuth
 from poecraft.api.client import PoeApiClient
 from poecraft.config import Config, get_config, save_config
@@ -28,7 +29,7 @@ async def dashboard(request: Request):
         name="index.html",
         context={
             "config": config,
-            "version": "0.1.0",
+            "version": __version__,
         },
     )
 
@@ -42,7 +43,7 @@ async def overlay():
 @router.get("/health")
 async def health():
     """Health check endpoint."""
-    return {"status": "ok", "version": "0.1.0"}
+    return {"status": "ok", "version": __version__}
 
 
 @router.get("/api/status")

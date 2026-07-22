@@ -16,6 +16,7 @@ from urllib.parse import quote
 
 import httpx
 
+from poecraft import __version__
 from poecraft.api.auth import SessionAuth
 from poecraft.api.models import (
     StashItem,
@@ -27,7 +28,7 @@ from poecraft.api.models import (
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.pathofexile.com"
-USER_AGENT = "poecraft/0.1.0 (linux-native; github.com/poecraft)"
+USER_AGENT = f"poecraft/{__version__} (linux-native; github.com/poecraft)"
 
 
 class RateLimitState:
