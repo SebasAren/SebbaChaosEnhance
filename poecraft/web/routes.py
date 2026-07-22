@@ -6,6 +6,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from poecraft.api.auth import SessionAuth
+from poecraft.api.client import PoeApiClient
 from poecraft.config import Config, get_config, save_config
 from poecraft.state import get_state
 
@@ -51,8 +53,9 @@ async def api_status():
 async def api_refresh(request: Request):
     """Trigger a refresh cycle and return the updated status."""
     state = get_state()
+    client = await _ensure_client(request)
     await state.refresh(
-        request.app.state.client,
+        client,
         get_config(),
         request.app.state.filter_writer,
     )
@@ -105,17 +108,83 @@ async def api_browse(path: str | None = None, ext: str | None = None):
     return {"path": str(target), "parent": str(parent) if parent else None, "entries": entries}
 
 
+async def _ensure_client(request: Request) -> PoeApiClient:
+    """Return an API client reflecting the *current saved* config.
+
+    The app-state client is built once at startup from the initial config, so
+    when the user saves different credentials we must rebuild it — otherwise
+    tab listings and refreshes would keep using the old account/league/session.
+    Test stand-ins (duck-typed fakes) are passed through unchanged.
+    """
+    client = request.app.state.client
+    if isinstance(client, PoeApiClient):
+        config = get_config()
+        if (
+            client.account_name != config.account_name
+            or client.league != config.league
+            or client.auth.session_id != config.session_id
+        ):
+            new_client = PoeApiClient(
+                config.account_name,
+                config.league,
+                SessionAuth(config.session_id),
+            )
+            request.app.state.client = new_client
+            try:
+                await client.close()
+            except Exception:
+                pass
+            return new_client
+    return client
+
+
 @router.get("/api/leagues")
 async def api_leagues(request: Request):
     """Proxy the active client's league list."""
-    leagues = await request.app.state.client.get_leagues()
+    client = await _ensure_client(request)
+    leagues = await client.get_leagues()
     return {"leagues": leagues}
 
 
 @router.get("/api/tabs")
 async def api_tabs(request: Request):
-    """Proxy the active client's stash tab metadata."""
-    tabs = await request.app.state.client.get_stash_tabs()
+    """Proxy the active client's stash tab metadata.
+
+    Returns a human-readable ``error`` when tabs can't be fetched (missing
+    credentials or an auth failure) so the picker can guide the user instead
+    of silently showing an empty list.
+    """
+    config = get_config()
+    missing = [
+        label
+        for label, value in (
+            ("account name", config.account_name),
+            ("POESESSID", config.session_id),
+        )
+        if not value
+    ]
+    if missing:
+        return {
+            "tabs": [],
+            "error": (
+                "Missing " + " and ".join(missing)
+                + " — fill these in, click Save Config, then reopen the tab picker."
+            ),
+        }
+
+    client = await _ensure_client(request)
+    tabs = await client.get_stash_tabs()
+    if not tabs:
+        # A valid account always has stash tabs, so an empty result almost
+        # always means an expired/invalid POESESSID or a league mismatch.
+        return {
+            "tabs": [],
+            "error": (
+                "The API returned no tabs — usually an expired or invalid "
+                "POESESSID, or the league/account doesn't match. Re-enter "
+                "your POESESSID, save, and click ↻ Reload."
+            ),
+        }
     return {"tabs": [tab.model_dump() for tab in tabs]}
 
 

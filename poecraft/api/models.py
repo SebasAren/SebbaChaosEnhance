@@ -4,15 +4,23 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class StashTabProps(BaseModel):
-    """A single stash tab's metadata from the tabs=1 response."""
+    """A single stash tab's metadata from the tabs=1 response.
+
+    The PoE endpoint returns abbreviated keys — ``n`` (name) and ``i`` (index)
+    — so we alias those onto the friendlier field names. ``populate_by_name``
+    keeps construction via ``name=``/``index=`` working too.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
     id: str = ""
-    name: str = ""
+    name: str = Field(default="", alias="n")
     type: str = ""          # "NormalStash", "CurrencyStash", "Folder", etc.
-    index: int = 0
+    index: int = Field(default=0, alias="i")
     children: Optional[list[StashTabProps]] = None
 
 

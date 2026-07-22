@@ -47,12 +47,15 @@ class RecipeState:
             include_identified=config.include_identified,
         )
 
-        filter_writer.update_filter(
-            path=config.loot_filter_path,
-            missing_classes=status.missing_classes,
-            recipe_type=recipe_type,
-            include_identified=config.include_identified,
-        )
+        # An empty loot_filter_path means no filter is configured — skip the
+        # update rather than crash on open("").
+        if config.loot_filter_path:
+            filter_writer.update_filter(
+                path=config.loot_filter_path,
+                missing_classes=status.missing_classes,
+                recipe_type=recipe_type,
+                include_identified=config.include_identified,
+            )
 
         self.current = status
         self.last_refresh = datetime.now()

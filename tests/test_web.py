@@ -187,6 +187,25 @@ def test_state_refresh_stores_status_and_calls_update_filter() -> None:
     assert ItemClass.HELMETS in call["missing_classes"]
 
 
+def test_state_refresh_skips_filter_when_loot_filter_path_empty() -> None:
+    """An unset loot_filter_path means no filter to touch — refresh must not crash."""
+    state = RecipeState()
+    client = FakeClient({0: [_raw_ring("r1"), _raw_ring("r2")]})
+    writer = FakeFilterWriter()
+    config = Config(
+        recipe_type="chaos",
+        set_threshold=1,
+        loot_filter_path="",  # empty => no filter configured
+    )
+
+    status = asyncio.run(state.refresh(client, config, writer))
+
+    # refresh still succeeds and stores status
+    assert state.current is status
+    # update_filter was NOT called (no path to write to)
+    assert writer.calls == []
+
+
 # ---------------------------------------------------------------------------
 # HTTP endpoints (FastAPI TestClient)
 # ---------------------------------------------------------------------------
@@ -280,6 +299,11 @@ def test_api_leagues_proxies_client() -> None:
 
 
 def test_api_tabs_proxies_client() -> None:
+    import poecraft.config as cfg_mod
+
+    cfg_mod._config = Config(
+        account_name="acc", session_id="sess", league="Standard"
+    )
     client = _client()
     client.app.state.client = ProxyClient(
         tabs=[StashTabProps(name="Quad", index=0, type="NormalStash")]
@@ -292,6 +316,58 @@ def test_api_tabs_proxies_client() -> None:
     assert len(body["tabs"]) == 1
     assert body["tabs"][0]["name"] == "Quad"
     assert body["tabs"][0]["index"] == 0
+    assert "error" not in body
+
+
+def test_api_tabs_missing_account_name_returns_error() -> None:
+    """With no account name saved, the picker should tell the user, not return []."""
+    import poecraft.config as cfg_mod
+
+    cfg_mod._config = Config(account_name="", session_id="sess")
+    client = _client()
+    client.app.state.client = ProxyClient(
+        tabs=[StashTabProps(name="X", index=0)]  # would succeed, but never reached
+    )
+
+    body = client.get("/api/tabs").json()
+
+    assert body["tabs"] == []
+    assert "account name" in body["error"]
+
+
+def test_api_tabs_missing_session_returns_error() -> None:
+    import poecraft.config as cfg_mod
+
+    cfg_mod._config = Config(account_name="acc", session_id="")
+    client = _client()
+    client.app.state.client = ProxyClient(tabs=[StashTabProps(name="X", index=0)])
+
+    body = client.get("/api/tabs").json()
+
+    assert body["tabs"] == []
+    assert "POESESSID" in body["error"]
+
+
+def test_api_tabs_auth_failure_reports_error() -> None:
+    """Complete credentials but the API yields no tabs -> auth-failure guidance.
+
+    A real account always has stash tabs, so an empty result almost always
+    means an expired/invalid POESESSID; the endpoint surfaces that rather than
+    an empty list.
+    """
+    import poecraft.config as cfg_mod
+
+    cfg_mod._config = Config(
+        account_name="acc", session_id="sess", league="Standard"
+    )
+    client = _client()
+    client.app.state.client = ProxyClient(tabs=[])  # simulates a 403 / empty reply
+
+    body = client.get("/api/tabs").json()
+
+    assert body["tabs"] == []
+    assert body["error"]
+    assert "POESESSID" in body["error"]
 
 
 def test_lifespan_wires_client_state_and_watcher(tmp_path) -> None:

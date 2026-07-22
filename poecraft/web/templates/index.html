@@ -58,6 +58,35 @@
   .picker-row:hover { background: #1b2a4a; }
   .picker-row.selected { background: #0f3460; color: #fbbf24; }
   .picker-row.is-dir { font-weight: 600; }
+  /* ---- stash tab multi-select dropdown ---- */
+  .tabs-field { display: inline-block; min-width: 22rem; position: relative; vertical-align: top; }
+  .tabs-trigger { display: flex; align-items: center; gap: 0.4rem; min-height: 1.7rem;
+    background: #0f1a33; color: #e0e0e0; border: 1px solid #0f3460; border-radius: 4px;
+    padding: 0.2rem 0.5rem; cursor: pointer; box-sizing: border-box; }
+  .tabs-trigger:hover, .tabs-trigger:focus { border-color: #1b4a8a; outline: none; }
+  .tabs-summary { flex: 1; display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
+  .tabs-summary em { color: #888; font-style: italic; }
+  .tabs-caret { color: #888; }
+  .tabs-dropdown { position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 50;
+    background: #0f1a33; border: 1px solid #0f3460; border-radius: 4px; margin-top: 2px;
+    display: flex; flex-direction: column; max-height: 340px; box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+  .tabs-dropdown[hidden] { display: none; }
+  .tabs-toolbar { display: flex; gap: 0.4rem; padding: 0.4rem; border-bottom: 1px solid #0f3460; position: sticky; top: 0; background: #0f1a33; }
+  .tabs-toolbar input { flex: 1; }
+  .tabs-list { overflow-y: auto; padding: 0.25rem; }
+  .tabs-row { display: flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.4rem;
+    border-radius: 3px; cursor: pointer; white-space: nowrap; }
+  .tabs-row:hover { background: #1b2a4a; }
+  .tabs-row input { min-width: auto; width: auto; }
+  .tabs-row .tabs-name { color: #e0e0e0; }
+  .tabs-row .tabs-type { color: #6b7280; font-size: 0.72rem; margin-left: auto; }
+  .tabs-row.is-folder .tabs-name { font-weight: 600; }
+  .tabs-msg { padding: 0.7rem; color: #888; font-size: 0.85rem; line-height: 1.4; }
+  .tabs-msg.error { color: #f87171; }
+  .tabs-pill { display: inline-flex; align-items: center; gap: 0.3rem; background: #0f3460;
+    color: #fbbf24; padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.78rem; }
+  .tabs-pill .tabs-pill-x { cursor: pointer; opacity: 0.65; }
+  .tabs-pill .tabs-pill-x:hover { opacity: 1; }
 </style>
 {% endblock %}
 
@@ -95,7 +124,20 @@
     <label>Account Name:</label><input type="text" name="account_name" value="{{ config.account_name }}"><br><br>
     <label>League:</label><input type="text" name="league" value="{{ config.league }}"><br><br>
     <label>Session ID (POESESSID):</label><input type="password" name="session_id" value="{{ config.session_id }}"><br><br>
-    <label>Stash Tabs (comma-separated):</label><input type="text" name="stash_tabs" value="{{ config.stash_tabs | join(',') }}"><br><br>
+    <label>Stash Tabs:</label>
+    <div class="tabs-field">
+      <div id="tabs-trigger" class="tabs-trigger" role="combobox" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+        <span id="tabs-summary" class="tabs-summary"><em>no tabs selected</em></span>
+        <span class="tabs-caret" aria-hidden="true">▾</span>
+      </div>
+      <div id="tabs-dropdown" class="tabs-dropdown" hidden>
+        <div class="tabs-toolbar">
+          <input type="text" id="tabs-filter" placeholder="Filter quad tabs by name…" autocomplete="off">
+          <button type="button" class="btn" id="tabs-reload" title="Reload tabs from the API">↻ Reload</button>
+        </div>
+        <div id="tabs-list" class="tabs-list"><div class="tabs-msg">Click ↻ Reload to fetch tabs from the API.</div></div>
+      </div>
+    </div><br><br>
     <label>Recipe Type:</label>
     <select name="recipe_type">
       <option value="chaos" {{ 'selected' if config.recipe_type == 'chaos' }}>Chaos Orb</option>
@@ -222,7 +264,7 @@ document.getElementById('config-form').addEventListener('submit', async (ev) => 
     account_name: form.account_name.value,
     league: form.league.value,
     session_id: form.session_id.value,
-    stash_tabs: form.stash_tabs.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)),
+    stash_tabs: selectedTabsSorted(),
     recipe_type: form.recipe_type.value,
     set_threshold: parseInt(form.set_threshold.value, 10),
     loot_filter_path: form.loot_filter_path.value,
@@ -271,7 +313,14 @@ async function pickerLoad(path) {
   if (pickerExt) q.set('ext', pickerExt);
   const sel = document.getElementById('picker-selected');
   try {
-    const data = await (await fetch('/api/browse?' + q.toString())).json();
+    const resp = await fetch('/api/browse?' + q.toString());
+    if (!resp.ok) {
+      throw new Error('HTTP ' + resp.status + ' (is the server running the latest build? restart it)');
+    }
+    const data = await resp.json();
+    if (!Array.isArray(data.entries)) {
+      throw new Error('unexpected response shape');
+    }
     pickerCwd = data.path;
     pickerParent = data.parent;
     pickerChoice = null;
@@ -323,6 +372,178 @@ function pickerConfirm() {
   const modal = document.getElementById('picker-modal');
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePicker(); });
   modal.addEventListener('click', (e) => { if (e.target === modal) closePicker(); });
+})();
+
+// ---- stash tab multi-select dropdown ----
+// Fetches human-readable tab names from GET /api/tabs and stores the selected
+// 0-based indices, matching the existing config.stash_tabs contract.
+const tabsState = {
+  tree: [],
+  flat: [],
+  selected: new Set({{ config.stash_tabs | tojson }}),
+  loaded: false,
+  loading: false,
+  error: null,
+};
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function selectedTabsSorted() { return [...tabsState.selected].sort((a, b) => a - b); }
+
+function tabNameByIndex(idx) {
+  const f = tabsState.flat.find(t => t.index === idx);
+  return f && f.name ? f.name : ('Tab ' + idx);
+}
+
+function renderTabsSummary() {
+  const el = document.getElementById('tabs-summary');
+  const sel = selectedTabsSorted();
+  if (sel.length === 0) { el.innerHTML = '<em>no tabs selected</em>'; return; }
+  el.innerHTML = sel.map(i => {
+    const name = tabsState.loaded ? escapeHtml(tabNameByIndex(i)) : ('Tab ' + i);
+    return '<span class="tabs-pill" data-idx="' + i + '">' + name +
+      ' <span class="tabs-pill-x" title="remove" onclick="event.stopPropagation();removeTab(' + i + ')">✕</span></span>';
+  }).join('');
+}
+
+function removeTab(idx) {
+  tabsState.selected.delete(idx);
+  syncTabCheckboxes();
+  renderTabsSummary();
+}
+
+// Flatten the folder tree into a list with depth + parentId for rendering.
+function flattenTabs(tabs, depth, parentId, out) {
+  for (const t of tabs || []) {
+    const isFolder = (t.type === 'Folder') || (Array.isArray(t.children) && t.children.length);
+    out.push({ name: t.name, type: t.type, index: t.index, depth, parentId, isFolder });
+    if (Array.isArray(t.children) && t.children.length) flattenTabs(t.children, depth + 1, t.index, out);
+  }
+  return out;
+}
+
+// All leaf-tab indices nested under a folder (folders don't hold items).
+function descendantLeaves(folderIdx) {
+  const out = [];
+  const walk = (parent) => {
+    for (const f of tabsState.flat) {
+      if (f.parentId === parent) {
+        if (f.isFolder) walk(f.index); else out.push(f.index);
+      }
+    }
+  };
+  walk(folderIdx);
+  return out;
+}
+
+function tabRowHtml(f) {
+  return '<label class="tabs-row" style="padding-left:' + (f.depth * 1.1) + 'rem">'
+    + '<input type="checkbox" id="tab-check-' + f.index + '" data-idx="' + f.index + '" onchange="onTabCheck(this)">'
+    + '<span class="tabs-name">' + escapeHtml(f.name || ('Tab ' + f.index)) + '</span>'
+    + '</label>';
+}
+
+function renderTabsList() {
+  const list = document.getElementById('tabs-list');
+  if (!tabsState.loaded) {
+    list.innerHTML = '<div class="tabs-msg">Click ↻ Reload to fetch tabs from the API.</div>';
+    return;
+  }
+  if (tabsState.error) {
+    list.innerHTML = '<div class="tabs-msg error">' + escapeHtml(tabsState.error) + '</div>';
+    return;
+  }
+  if (tabsState.flat.length === 0) {
+    list.innerHTML = '<div class="tabs-msg">No Quad stash tabs found. PoECraft uses Quad tabs (24×24); make sure you have one, then click ↻ Reload.</div>';
+    return;
+  }
+  // Narrow the quad-tab list by name.
+  const q = (document.getElementById('tabs-filter').value || '').toLowerCase().trim();
+  list.innerHTML = tabsState.flat
+    .filter(f => !q || (f.name || '').toLowerCase().includes(q))
+    .map(tabRowHtml).join('');
+  syncTabCheckboxes();
+}
+
+function syncTabCheckboxes() {
+  for (const f of tabsState.flat) {
+    const el = document.getElementById('tab-check-' + f.index);
+    if (!el) continue;
+    if (f.isFolder) {
+      const leaves = descendantLeaves(f.index);
+      const sel = leaves.filter(i => tabsState.selected.has(i)).length;
+      el.checked = leaves.length > 0 && sel === leaves.length;
+      el.indeterminate = sel > 0 && sel < leaves.length;
+    } else {
+      el.checked = tabsState.selected.has(f.index);
+    }
+  }
+}
+
+function onTabCheck(input) {
+  const idx = parseInt(input.dataset.idx, 10);
+  if (input.dataset.folder) {
+    const leaves = descendantLeaves(idx);
+    const allSel = leaves.length > 0 && leaves.every(i => tabsState.selected.has(i));
+    for (const i of leaves) { if (allSel) tabsState.selected.delete(i); else tabsState.selected.add(i); }
+  } else {
+    if (input.checked) tabsState.selected.add(idx); else tabsState.selected.delete(idx);
+  }
+  syncTabCheckboxes();
+  renderTabsSummary();
+}
+
+async function loadTabs() {
+  if (tabsState.loading) return;
+  tabsState.loading = true;
+  tabsState.error = null;
+  document.getElementById('tabs-list').innerHTML = '<div class="tabs-msg">Loading tabs from API…</div>';
+  try {
+    const resp = await fetch('/api/tabs');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    tabsState.loaded = true;
+    tabsState.error = data.error || null;
+    tabsState.tree = data.tabs || [];
+    // PoECraft models a 24×24 Quad tab, so only offer Quad tabs — flattened
+    // out of their folders, since every shown tab is a usable quad leaf.
+    tabsState.flat = tabsState.error ? [] : flattenTabs(tabsState.tree, 0, null, [])
+      .filter(t => (t.type || '').toLowerCase().includes('quad'))
+      .map(t => ({ ...t, depth: 0, parentId: null, isFolder: false }));
+  } catch (e) {
+    tabsState.loaded = true;
+    tabsState.error = 'Failed to load tabs: ' + e.message;
+    tabsState.flat = [];
+  }
+  tabsState.loading = false;
+  renderTabsList();
+  renderTabsSummary();
+}
+
+function toggleTabsDropdown(force) {
+  const dd = document.getElementById('tabs-dropdown');
+  const trigger = document.getElementById('tabs-trigger');
+  const show = force != null ? force : dd.hidden;
+  dd.hidden = !show;
+  trigger.setAttribute('aria-expanded', show ? 'true' : 'false');
+  if (show && !tabsState.loaded && !tabsState.loading) loadTabs();
+  if (show) setTimeout(() => document.getElementById('tabs-filter').focus(), 0);
+}
+
+(function initTabsDropdown() {
+  const field = document.querySelector('.tabs-field');
+  const trigger = document.getElementById('tabs-trigger');
+  trigger.addEventListener('click', () => toggleTabsDropdown());
+  trigger.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTabsDropdown(); }
+  });
+  document.getElementById('tabs-filter').addEventListener('input', renderTabsList);
+  document.getElementById('tabs-reload').addEventListener('click', () => { tabsState.loaded = false; loadTabs(); });
+  document.addEventListener('click', (e) => { if (!field.contains(e.target)) toggleTabsDropdown(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleTabsDropdown(false); });
+  renderTabsSummary();
 })();
 
 fetchStatus();
