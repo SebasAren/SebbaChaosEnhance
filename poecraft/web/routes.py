@@ -1,5 +1,6 @@
 """Web UI routes."""
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -81,7 +82,15 @@ async def api_events(request: Request):
             while True:
                 if await request.is_disconnected():
                     break
-                yield _sse_frame(await q.get())
+                # Bound the wait so we re-check is_disconnected() periodically;
+                # a bare await q.get() would park forever between refreshes and
+                # the finally/unsubscribe would never run for a client that
+                # disconnects during a quiet period.
+                try:
+                    payload = await asyncio.wait_for(q.get(), timeout=15)
+                except asyncio.TimeoutError:
+                    continue
+                yield _sse_frame(payload)
         finally:
             state.unsubscribe(q)
 
