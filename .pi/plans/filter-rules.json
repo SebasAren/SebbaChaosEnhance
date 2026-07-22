@@ -4,171 +4,171 @@
   "context": "PoECraft v1. Implements the loot-filter manipulation layer in poecraft/filter/{reader,generator,writer}.py. Highlight-only behavior (settled in grill): emit exactly one Show rule — strong style (background/text/border color, MinimapIcon, PlayEffect) — per MISSING item class; NEVER emit Hide; classes that aren't missing are left entirely to the user's existing filter. Consumes RecipeStatus.missing_classes from the recipe-core plan. Section is wrapped in marker comments, injected/replaced idempotently, and removable. Fully unit-testable against tmp_path .filter files — no real filter needed. Depends on recipe-core scaffolding (pytest, tests/, jj repo) and poecraft/recipe/types.py (ItemClass, RecipeType, RECIPE_ILVL_RANGES) which already exists.",
   "architecture": "poecraft/filter/reader.py: MARKER_START, MARKER_END; read_filter(path)->str; split_filter(content)->tuple[before, section, after] (no markers => before='', section='', after=whole). poecraft/filter/generator.py: CLASS_COLORS: dict[ItemClass, {bg,text,border}] (RGBA hex from CRE defaults); CLASS_FILTER_NAMES: dict[ItemClass, str] with quoted display names ('Body Armours', 'One Hand Weapons', 'Two Hand Weapons', plus singulars); DEFAULT_STYLE = ['HasInfluence None', 'Sockets < 6', 'LinkedSockets < 5']; _parse_hex('#RRGGBBAA')->tuple[int,int,int,int]; generate_rule(item_class, recipe_type, include_identified=False)->str (Show, Class '<name>', Rarity Rare, [Identified False unless include_identified], ItemLevel >=/<= from RECIPE_ILVL_RANGES, DEFAULT_STYLE, Set*Color, SetFontSize 40, MinimapIcon 0 Yellow Circle, PlayEffect Yellow Temp); generate_section(missing_classes, recipe_type, include_identified=False)->str (markers + one Show rule per missing class, sorted; never Hide). poecraft/filter/writer.py: write_filter(path, content); update_filter(path, missing_classes, recipe_type, include_identified=False)->bool; remove_chaos_section(path)->bool.",
   "created": "2026-07-22T14:55:42.953Z",
-  "updated": "2026-07-22T14:55:42.969Z",
+  "updated": "2026-07-22T15:45:07.880Z",
   "steps": [
     {
       "index": 1,
       "name": "reader.split_filter — marker-based split",
       "red": {
         "description": "In tests/test_filter_reader.py, split_filter on content with markers returns (before, section, after); content with no markers returns ('', '', whole). Fails (module missing).",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement poecraft/filter/reader.py: MARKER_START, MARKER_END, read_filter(path)->str, split_filter(content)->tuple[str,str,str]. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 2,
       "name": "generator._parse_hex — RGBA hex to tuple",
       "red": {
         "description": "_parse_hex('#FF9600FF') == (255,150,0,255); _parse_hex('#FFFFFFFF') == (255,255,255,255). Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement poecraft/filter/generator.py with _parse_hex. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 3,
       "name": "generate_rule — single Show rule for Rings/chaos",
       "red": {
         "description": "generate_rule(ItemClass.RINGS, RecipeType.CHAOS) returns a string containing: Show, Class \"Rings\", Rarity Rare, Identified False, ItemLevel >= 60, ItemLevel <= 74, HasInfluence None, Sockets < 6, LinkedSockets < 5, SetBackgroundColor 255 150 0 255, SetFontSize 40, MinimapIcon 0 Yellow Circle, PlayEffect Yellow Temp. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement CLASS_COLORS, CLASS_FILTER_NAMES, DEFAULT_STYLE, generate_rule. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 4,
       "name": "generate_rule — include_identified omits Identified line; recipe ilvl ranges",
       "red": {
         "description": "generate_rule(RINGS, REGAL, include_identified=True) contains ItemLevel >= 75 and NO 'Identified' line; generate_rule(RINGS, CHANCE) contains ItemLevel <= 59. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Wire RECIPE_ILVL_RANGES + conditional Identified line. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 5,
       "name": "generate_rule — multi-word Class names quoted",
       "red": {
         "description": "generate_rule(BODY_ARMOURS,...) contains Class \"Body Armours\"; ONE_HAND_WEAPONS -> Class \"One Hand Weapons\"; TWO_HAND_WEAPONS -> Class \"Two Hand Weapons\". Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Complete CLASS_FILTER_NAMES for all 9 classes. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 6,
       "name": "generate_section — highlight-only (missing classes only, never Hide, markers)",
       "red": {
         "description": "generate_section({RINGS, BOOTS}, CHAOS) contains exactly one Show rule for Rings and one for Boots, wrapped in MARKER_START..MARKER_END, and contains NO 'Hide' and NO rule for any non-missing class. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement generate_section(missing_classes, recipe_type, include_identified=False). Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "sort missing classes for deterministic output.",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 7,
       "name": "writer.update_filter — inject into fresh filter (tmp_path)",
       "red": {
         "description": "Write a dummy .filter (no markers) to tmp_path; update_filter(path, {RINGS}, CHAOS, False) -> True; file now contains markers + Rings Show rule + original content. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement poecraft/filter/writer.py: write_filter, update_filter (read -> split -> generate_section -> splice -> write). Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 8,
       "name": "writer.update_filter — idempotent replace",
       "red": {
         "description": "Call update_filter twice on the same file -> the Rings Show rule appears exactly once; before/after content intact. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Ensure split+replace path (no duplication). Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 9,
       "name": "writer.remove_chaos_section — clean removal",
       "red": {
         "description": "After update_filter then remove_chaos_section -> file has no markers, no section, original content intact. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement remove_chaos_section. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 10,
       "name": "integration — missing_classes from recipe-core drives the filter",
       "red": {
         "description": "In tests/test_filter_integration.py, build EnhancedItems via recipe-core, compute missing_classes, call update_filter on a tmp file, assert the written filter Shows the missing classes and Hides none. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Wire the seam; fix failures.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
