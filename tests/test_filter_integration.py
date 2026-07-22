@@ -67,11 +67,19 @@ def test_recipe_core_missing_classes_drive_filter(tmp_path) -> None:
     status = generate_sets(stash, RecipeType.CHAOS, set_threshold=1)
     assert ItemClass.RINGS in status.missing_classes
     assert ItemClass.BOOTS in status.missing_classes
+    # 7 eligible items >= threshold 1 -> stash has enough, so the chaos filter
+    # broadens to ilvl 60+ (needs_lower_level False)
+    assert status.needs_lower_level is False
 
     p = tmp_path / "integration.filter"
     p.write_text("# user filter\nShow\n    Class \"Currency\"\n")
 
-    changed = update_filter(p, status.missing_classes, RecipeType.CHAOS)
+    changed = update_filter(
+        p,
+        status.missing_classes,
+        RecipeType.CHAOS,
+        needs_lower_level=status.needs_lower_level,
+    )
     assert changed is True
 
     result = p.read_text()
@@ -83,6 +91,9 @@ def test_recipe_core_missing_classes_drive_filter(tmp_path) -> None:
     assert 'Class "Boots"' in result
     # Hides nothing — highlight-only
     assert "Hide" not in result
+    # broadened chaos range: ilvl 60+ (catches ilvl 75 boss drops in a 73 map)
+    assert "ItemLevel >= 60" in result
+    assert "ItemLevel <= 74" not in result
     # does NOT add rules for classes the user already has covered
     assert 'Class "Helmets"' not in result
     assert 'Class "Gloves"' not in result

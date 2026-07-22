@@ -361,3 +361,35 @@ class TestGenerateSetsFill:
         assert ItemClass.TWO_HAND_WEAPONS in only_set.items
         assert ItemClass.ONE_HAND_WEAPONS not in only_set.items
         assert [item.id for item in status.unassigned_items] == ["1h-0"]
+
+
+class TestNeedsLowerLevel:
+    """needs_lower_level gates the chaos recipe's ItemLevel upper bound.
+
+    Mirrors CRE's NeedsLowerLevel: True (strict 60-74) when the stash has
+    fewer eligible items than the set threshold; False (broad 60+) once it
+    has enough. Regal/Exalted are always False — the flag only matters for
+    the chaos recipe's filter output.
+    """
+
+    def test_true_when_eligible_count_below_threshold(self):
+        items = _many(ItemClass.RINGS, 1, "ring")
+        status = generate_sets(items, RecipeType.CHAOS, set_threshold=2)
+        assert status.needs_lower_level is True
+
+    def test_false_when_eligible_count_at_or_above_threshold(self):
+        items = _many(ItemClass.RINGS, 4, "ring")
+        status = generate_sets(items, RecipeType.CHAOS, set_threshold=2)
+        assert status.needs_lower_level is False
+
+    def test_true_when_no_eligible_items(self):
+        status = generate_sets([], RecipeType.CHAOS, set_threshold=2)
+        assert status.needs_lower_level is True
+
+    def test_false_for_regal_regardless_of_item_count(self):
+        status = generate_sets([], RecipeType.REGAL, set_threshold=2)
+        assert status.needs_lower_level is False
+
+    def test_false_for_exalted_regardless_of_item_count(self):
+        status = generate_sets([], RecipeType.EXALTED, set_threshold=2)
+        assert status.needs_lower_level is False

@@ -54,6 +54,29 @@ def test_update_filter_idempotent_replace(tmp_path) -> None:
     assert original in twice
 
 
+def test_update_filter_threads_needs_lower_level(tmp_path) -> None:
+    """needs_lower_level=False broadens the chaos range to ilvl 60+."""
+    p = tmp_path / "broad.filter"
+    p.write_text("Show\n    Class \"Currency\"\n")
+
+    update_filter(p, {ItemClass.BOOTS}, RecipeType.CHAOS, needs_lower_level=False)
+
+    result = p.read_text()
+    assert "ItemLevel >= 60" in result
+    assert "ItemLevel <= 74" not in result
+
+
+def test_update_filter_default_keeps_upper_bound(tmp_path) -> None:
+    """Default (needs_lower_level=True) keeps the strict 60-74 chaos range."""
+    p = tmp_path / "strict.filter"
+    p.write_text("Show\n    Class \"Currency\"\n")
+
+    update_filter(p, {ItemClass.BOOTS}, RecipeType.CHAOS)
+
+    result = p.read_text()
+    assert "ItemLevel <= 74" in result
+
+
 def test_remove_chaos_section_strips_markers_and_section(tmp_path) -> None:
     original = "Show\n    Class \"Currency\"\n# trailing\n"
     p = tmp_path / "removable.filter"

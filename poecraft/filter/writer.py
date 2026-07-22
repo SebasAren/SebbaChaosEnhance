@@ -27,16 +27,21 @@ def update_filter(
     missing_classes: set[ItemClass],
     recipe_type: RecipeType,
     include_identified: bool = False,
+    needs_lower_level: bool = True,
 ) -> bool:
     """Inject or replace the poecraft highlight section in a .filter file.
 
     Returns True if the file content changed (section differs from what was
     there), False if it was already up to date. The original before/after
     content is always preserved; only the marker-wrapped section is touched.
+    ``needs_lower_level`` is forwarded to :func:`generate_section` and gates
+    the chaos recipe's ItemLevel upper bound.
     """
     content = read_filter(path)
     before, _existing, after = split_filter(content)
-    section = generate_section(missing_classes, recipe_type, include_identified)
+    section = generate_section(
+        missing_classes, recipe_type, include_identified, needs_lower_level
+    )
     new_content = f"{before}{section}{after}"
     write_filter(path, new_content)
     return new_content != content

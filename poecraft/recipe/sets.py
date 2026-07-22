@@ -194,6 +194,11 @@ class RecipeStatus:
     missing_classes: set[ItemClass]
     item_counts: dict[ItemClass, int]
     unassigned_items: list[EnhancedItem]
+    # Whether the chaos recipe filter should restrict to its strict ilvl
+    # range. Mirrors CRE's NeedsLowerLevel: True when the stash holds fewer
+    # eligible items than the set threshold (need more chaos-range drops);
+    # False once it has enough, which broadens the filter to ilvl 60+.
+    needs_lower_level: bool
 
     def to_grid(self) -> dict:
         """Flatten to a grid-friendly dict: items with per-item set_index.
@@ -250,6 +255,15 @@ def generate_sets(
     eligible = filter_stash_items(items, recipe_type, include_identified)
     item_counts = count_items(eligible)
 
+    # Mirrors CRE's GlobalItemSetManagerState NeedsLowerLevel logic. The flag
+    # only affects the chaos recipe's filter output (its ItemLevel upper
+    # bound); regal/exalted are always False since the flag is irrelevant to
+    # them. 'or not eligible' covers the explicit zero-items case.
+    needs_lower_level = (
+        recipe_type not in (RecipeType.REGAL, RecipeType.EXALTED)
+        and (len(eligible) < set_threshold or not eligible)
+    )
+
     recipe_sets = [RecipeSet() for _ in range(set_threshold)]
 
     unassigned: list[EnhancedItem] = []
@@ -272,4 +286,5 @@ def generate_sets(
         missing_classes=missing_classes,
         item_counts=item_counts,
         unassigned_items=unassigned,
+        needs_lower_level=needs_lower_level,
     )

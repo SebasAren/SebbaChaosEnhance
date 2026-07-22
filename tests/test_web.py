@@ -62,6 +62,7 @@ def test_to_grid_assigns_set_index_per_item_and_none_for_unassigned() -> None:
         missing_classes={ItemClass.HELMETS, ItemClass.RINGS},
         item_counts={ItemClass.RINGS: 2, ItemClass.HELMETS: 1},
         unassigned_items=unassigned,
+        needs_lower_level=False,
     )
 
     grid = status.to_grid()
@@ -129,6 +130,7 @@ class FakeFilterWriter:
         missing_classes: set[ItemClass],
         recipe_type,
         include_identified: bool,
+        needs_lower_level: bool = True,
     ) -> bool:
         self.calls.append(
             {
@@ -136,6 +138,7 @@ class FakeFilterWriter:
                 "missing_classes": set(missing_classes),
                 "recipe_type": recipe_type,
                 "include_identified": include_identified,
+                "needs_lower_level": needs_lower_level,
             }
         )
         return True

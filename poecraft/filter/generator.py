@@ -83,12 +83,19 @@ def generate_rule(
     item_class: ItemClass,
     recipe_type: RecipeType,
     include_identified: bool = False,
+    needs_lower_level: bool = True,
 ) -> str:
     """Generate a single highlight Show rule for one missing item class.
 
     The rule highlights (never hides) the given class with a strong style.
     ``include_identified=False`` emits an ``Identified False`` filter line so
     only unidentified rares match; setting it True omits that line entirely.
+
+    ``needs_lower_level`` gates the chaos recipe's ``ItemLevel`` upper bound:
+    when False (the stash has enough items), the upper bound is dropped so the
+    filter broadens to ilvl 60+ and catches higher drops — e.g. ilvl 75
+    boss/rare-monster drops in an ilvl 73 map. Mirrors CRE's NeedsLowerLevel.
+    Other recipe types are unaffected.
     """
     colors = CLASS_COLORS[item_class]
     low, high = RECIPE_ILVL_RANGES[recipe_type]
@@ -100,7 +107,10 @@ def generate_rule(
     if not include_identified:
         lines.append("Identified False")
     lines.append(f"ItemLevel >= {low}")
-    lines.append(f"ItemLevel <= {high}")
+    # Chaos recipe: cap the upper bound only when we specifically need more
+    # chaos-range (ilvl 60-74) items. With enough items, broaden to ilvl 60+.
+    if recipe_type != RecipeType.CHAOS or needs_lower_level:
+        lines.append(f"ItemLevel <= {high}")
     lines.extend(DEFAULT_STYLE)
     lines.append(f"SetBackgroundColor {_fmt_color(colors['bg'])}")
     lines.append(f"SetTextColor {_fmt_color(colors['text'])}")
@@ -115,16 +125,18 @@ def generate_section(
     missing_classes: set[ItemClass],
     recipe_type: RecipeType,
     include_identified: bool = False,
+    needs_lower_level: bool = True,
 ) -> str:
     """Generate the marker-wrapped highlight section for missing classes.
 
     Emits exactly one Show rule per missing class (never Hide), wrapped in
     MARKER_START/MARKER_END. Rules are ordered by ItemClass enum definition
     for deterministic output. An empty ``missing_classes`` set still yields
-    the marker wrapper with no rules in between.
+    the marker wrapper with no rules in between. ``needs_lower_level`` is
+    forwarded to each rule (see :func:`generate_rule`).
     """
     body = "\n\n".join(
-        generate_rule(cls, recipe_type, include_identified)
+        generate_rule(cls, recipe_type, include_identified, needs_lower_level)
         for cls in sorted(missing_classes, key=_CLASS_ORDER.get)
     )
     if body:

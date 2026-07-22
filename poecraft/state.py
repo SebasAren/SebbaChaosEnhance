@@ -32,7 +32,7 @@ class RecipeState:
 
         ``client`` must expose ``async get_all_selected_tabs(indices)``; the
         ``filter_writer`` must expose ``update_filter(path, missing_classes,
-        recipe_type, include_identified)``.
+        recipe_type, include_identified, needs_lower_level)``.
         """
         tabs = await client.get_all_selected_tabs(config.stash_tabs)
 
@@ -59,6 +59,7 @@ class RecipeState:
                 missing_classes=status.missing_classes,
                 recipe_type=recipe_type,
                 include_identified=config.include_identified,
+                needs_lower_level=status.needs_lower_level,
             )
 
         self.current = status

@@ -92,6 +92,44 @@ def test_generate_rule_weapons_never_emit_invalid_class_names() -> None:
         )
 
 
+def test_generate_rule_chaos_keeps_upper_bound_by_default() -> None:
+    """Default behaviour (no info) is the strict chaos range 60-74."""
+    rule = generate_rule(ItemClass.RINGS, RecipeType.CHAOS)
+    assert "ItemLevel >= 60" in rule
+    assert "ItemLevel <= 74" in rule
+
+
+def test_generate_rule_chaos_keeps_upper_bound_when_needs_lower_level() -> None:
+    """Short on stash items -> strict chaos range (60-74)."""
+    rule = generate_rule(ItemClass.RINGS, RecipeType.CHAOS, needs_lower_level=True)
+    assert "ItemLevel >= 60" in rule
+    assert "ItemLevel <= 74" in rule
+
+
+def test_generate_rule_chaos_drops_upper_bound_when_not_needs_lower_level() -> None:
+    """Enough items in stash -> broaden to ilvl 60+ so higher drops (e.g. ilvl
+    75 boss drops in a 73 map) still highlight. Mirrors CRE NeedsLowerLevel."""
+    rule = generate_rule(ItemClass.RINGS, RecipeType.CHAOS, needs_lower_level=False)
+    assert "ItemLevel >= 60" in rule
+    assert "ItemLevel <= 74" not in rule
+
+
+def test_generate_rule_needs_lower_level_does_not_affect_regal() -> None:
+    """needs_lower_level only gates the chaos upper bound; regal is unchanged."""
+    rule = generate_rule(ItemClass.RINGS, RecipeType.REGAL, needs_lower_level=False)
+    assert "ItemLevel >= 75" in rule
+    # regal still emits its (harmless) upper bound regardless
+    assert "ItemLevel <= 999" in rule
+
+
+def test_generate_section_threads_needs_lower_level() -> None:
+    section = generate_section(
+        {ItemClass.BOOTS}, RecipeType.CHAOS, needs_lower_level=False
+    )
+    assert "ItemLevel >= 60" in section
+    assert "ItemLevel <= 74" not in section
+
+
 def test_generate_section_highlight_only_missing_never_hide_wrapped_in_markers() -> None:
     section = generate_section({ItemClass.RINGS, ItemClass.BOOTS}, RecipeType.CHAOS)
     assert MARKER_START in section
