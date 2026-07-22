@@ -17,6 +17,7 @@ from poecraft.config import get_config, load_config
 from poecraft.filter import writer as filter_writer
 from poecraft.logwatch import ClientLogWatcher, resolve_log_path
 from poecraft.state import get_state
+from poecraft.web.routes import resolve_client
 from poecraft.web.routes import router as web_router
 
 logging.basicConfig(
@@ -49,7 +50,16 @@ async def lifespan(app: FastAPI):
         async def on_zone_change(area: str) -> None:
             logger.info("Zone change to %s — refreshing", area)
             try:
-                await state.refresh(client, config, filter_writer)
+                # Resolve the live config + client each fire. The closure must
+                # not capture the startup values: after the user changes the
+                # selected tab (or credentials) and saves, get_config() / the
+                # app-state client reflect that, while a captured snapshot
+                # would keep fetching the old — often empty — tab.
+                await state.refresh(
+                    await resolve_client(app.state),
+                    get_config(),
+                    filter_writer,
+                )
             except Exception as exc:  # noqa: BLE001 — don't kill the watcher
                 logger.warning("Refresh on zone change failed: %s", exc)
 

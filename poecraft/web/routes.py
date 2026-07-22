@@ -146,15 +146,19 @@ async def api_browse(path: str | None = None, ext: str | None = None):
     return {"path": str(target), "parent": str(parent) if parent else None, "entries": entries}
 
 
-async def _ensure_client(request: Request) -> PoeApiClient:
+async def resolve_client(app_state) -> PoeApiClient:
     """Return an API client reflecting the *current saved* config.
 
     The app-state client is built once at startup from the initial config, so
     when the user saves different credentials we must rebuild it — otherwise
     tab listings and refreshes would keep using the old account/league/session.
     Test stand-ins (duck-typed fakes) are passed through unchanged.
+
+    Shared by the HTTP endpoints (via ``request.app.state``) and the
+    logwatch zone-change callback (via ``app.state``) so both paths always
+    agree on which account/league/session to talk to.
     """
-    client = request.app.state.client
+    client = app_state.client
     if isinstance(client, PoeApiClient):
         config = get_config()
         if (
@@ -167,13 +171,18 @@ async def _ensure_client(request: Request) -> PoeApiClient:
                 config.league,
                 SessionAuth(config.session_id),
             )
-            request.app.state.client = new_client
+            app_state.client = new_client
             try:
                 await client.close()
             except Exception:
                 pass
             return new_client
     return client
+
+
+async def _ensure_client(request: Request) -> PoeApiClient:
+    """Thin request-bound wrapper around :func:`resolve_client`."""
+    return await resolve_client(request.app.state)
 
 
 @router.get("/api/leagues")

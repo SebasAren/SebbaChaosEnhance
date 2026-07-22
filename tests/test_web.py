@@ -10,6 +10,7 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -635,3 +636,85 @@ def test_overlay_redirects_to_dashboard() -> None:
 
     assert resp.status_code == 302
     assert resp.headers["location"] == "/"
+
+
+# ---------------------------------------------------------------------------
+# Client resolution (shared by manual refresh + zone-change refresh)
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_client_rebuilds_when_credentials_change() -> None:
+    """resolve_client rebuilds the client when the saved config's creds change.
+
+    Keeps automated refreshes honest after the user re-enters their POESESSID
+    or switches account/league without restarting the server.
+    """
+    import poecraft.config as cfg_mod
+    from poecraft.api.auth import SessionAuth
+    from poecraft.api.client import PoeApiClient
+    from poecraft.web.routes import resolve_client
+
+    cfg_mod._config = Config(account_name="new", league="NewLeague", session_id="new-sess")
+    old = PoeApiClient("old", "OldLeague", SessionAuth("old-sess"))
+    app_state = SimpleNamespace(client=old)
+
+    resolved = asyncio.run(resolve_client(app_state))
+
+    assert resolved is not old
+    assert resolved.account_name == "new"
+    assert resolved.league == "NewLeague"
+    assert resolved.auth.session_id == "new-sess"
+    # the new client is published back onto app state for later callers
+    assert app_state.client is resolved
+
+
+def test_resolve_client_passes_through_test_doubles() -> None:
+    """Duck-typed stand-ins (not PoeApiClient instances) are returned unchanged."""
+    from poecraft.web.routes import resolve_client
+
+    fake = FakeClient({0: []})
+    app_state = SimpleNamespace(client=fake)
+
+    assert asyncio.run(resolve_client(app_state)) is fake
+
+
+def test_zone_change_refresh_uses_live_config_not_startup_capture(tmp_path) -> None:
+    """Regression: a zone-change refresh must use the *current* saved config.
+
+    The logwatch callback used to close over the startup config + client, so
+    after the user changed their selected stash tab (and saved), automated
+    refreshes kept fetching the old tab — often an empty one — and blanked the
+    dashboard. It must instead resolve the live config + client every fire.
+    """
+    import poecraft.config as cfg_mod
+    from poecraft.main import app
+
+    log_file = tmp_path / "Client.txt"
+    log_file.write_text("")
+    filter_file = tmp_path / "x.filter"
+    filter_file.write_text("")
+
+    # Empty tabs at startup so the initial refresh issues no network calls.
+    cfg_mod._config = Config(
+        account_name="acc",
+        league="Standard",
+        session_id="sess",
+        stash_tabs=[],
+        loot_filter_path=str(filter_file),
+        client_log_path=str(log_file),
+    )
+
+    with TestClient(app) as client:
+        # User picks a different tab and saves — get_config() now reflects it.
+        cfg_mod._config = cfg_mod._config.model_copy(update={"stash_tabs": [29]})
+        # Observing client records which tabs the refresh actually fetches.
+        fake = FakeClient({29: [_raw_ring("r1")]})
+        client.app.state.client = fake
+
+        asyncio.run(client.app.state.watcher.on_zone_change("Aspirants' Plaza"))
+
+        # Live config (tab 29) must drive the fetch, not the startup config.
+        assert fake.requested_indices == [29]
+        # ...and the grid reflects the fetched items, not a stale/empty tab.
+        payload = client.app.state.recipe_state.to_payload()
+        assert payload["item_counts"] == {"Rings": 1}
