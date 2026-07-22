@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -362,6 +363,57 @@ def test_dashboard_renders_regardless_of_cwd(tmp_path, monkeypatch) -> None:
 
     assert resp.status_code == 200
     assert 'id="grid"' in resp.text
+
+
+def test_api_browse_lists_dirs_and_filters_files(tmp_path, monkeypatch) -> None:
+    """The file picker needs directories (to navigate) plus files filtered by ext.
+
+    <input type="file"> can't expose real paths in a browser, so the config
+    pickers drive this endpoint instead. It must: always show directories,
+    show only matching files when `ext` is given, expose an absolute path and
+    a parent for navigation, and fall back to home on a bad path.
+    """
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    # build a little tree: a dir, a matching file, and a non-matching file
+    (tmp_path / "subdir").mkdir()
+    (tmp_path / "my.filter").write_text("")
+    (tmp_path / "notes.txt").write_text("")
+
+    client = _client()
+
+    # .filter filtering: subdir shows, my.filter shows, notes.txt is hidden
+    resp = client.get("/api/browse", params={"path": str(tmp_path), "ext": ".filter"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["path"] == str(tmp_path)
+    assert body["parent"] == str(tmp_path.parent)
+    names = {e["name"]: e["type"] for e in body["entries"]}
+    assert names["subdir"] == "dir"
+    assert names["my.filter"] == "file"
+    assert "notes.txt" not in names  # filtered out
+
+    # no ext filter: every file shows
+    resp = client.get("/api/browse", params={"path": str(tmp_path)})
+    names = {e["name"] for e in resp.json()["entries"]}
+    assert {"subdir", "my.filter", "notes.txt"} <= names
+
+    # a file path (e.g. a field's current value) -> browse its parent dir
+    resp = client.get("/api/browse", params={"path": str(tmp_path / "my.filter"), "ext": ".filter"})
+    assert resp.json()["path"] == str(tmp_path)
+
+    # an unreadable / non-existent path falls back to home
+    resp = client.get("/api/browse", params={"path": "/no/such/dir/here"})
+    assert resp.json()["path"] == str(tmp_path)
+
+
+def test_api_browse_default_path_is_home(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    client = _client()
+
+    resp = client.get("/api/browse")
+
+    assert resp.status_code == 200
+    assert resp.json()["path"] == str(tmp_path)
 
 
 def test_overlay_redirects_to_dashboard() -> None:

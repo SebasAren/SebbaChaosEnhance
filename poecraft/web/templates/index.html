@@ -41,6 +41,23 @@
     background: #0f1a33; color: #e0e0e0; border: 1px solid #0f3460;
     border-radius: 4px; padding: 0.25rem 0.4rem;
   }
+  /* ---- file picker modal ---- */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal-overlay[hidden] { display: none; }
+  .modal { background: #0f1a33; border: 1px solid #0f3460; border-radius: 8px;
+    width: 580px; max-width: 92vw; max-height: 80vh; display: flex; flex-direction: column; }
+  .modal-head, .modal-foot { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem; }
+  .modal-head { border-bottom: 1px solid #0f3460; }
+  .modal-head h3 { margin: 0; flex: 1; color: #e94560; }
+  .modal-foot { border-top: 1px solid #0f3460; }
+  .modal-x { background: none; border: none; color: #888; font-size: 1.1rem; cursor: pointer; }
+  .picker-pathbar { display: flex; gap: 0.5rem; padding: 0.5rem 0.8rem; }
+  .picker-list { overflow-y: auto; flex: 1; padding: 0 0.4rem 0.4rem; min-height: 220px; }
+  .picker-row { padding: 0.3rem 0.5rem; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+  .picker-row:hover { background: #1b2a4a; }
+  .picker-row.selected { background: #0f3460; color: #fbbf24; }
+  .picker-row.is-dir { font-weight: 600; }
 </style>
 {% endblock %}
 
@@ -87,12 +104,31 @@
       <option value="exalted" {{ 'selected' if config.recipe_type == 'exalted' }}>Exalted Orb</option>
     </select><br><br>
     <label>Set Threshold:</label><input type="number" name="set_threshold" value="{{ config.set_threshold }}" min="1" max="20"><br><br>
-    <label>Loot Filter Path:</label><input type="text" name="loot_filter_path" value="{{ config.loot_filter_path }}" size="60"><br><br>
-    <label>Client Log Path:</label><input type="text" name="client_log_path" value="{{ config.client_log_path }}" size="60"><br><br>
+    <label>Loot Filter Path:</label><input type="text" name="loot_filter_path" value="{{ config.loot_filter_path }}" size="60"> <button type="button" class="btn" onclick="browsePath('loot_filter_path', '.filter')">Browse…</button><br><br>
+    <label>Client Log Path:</label><input type="text" name="client_log_path" value="{{ config.client_log_path }}" size="60"> <button type="button" class="btn" onclick="browsePath('client_log_path', '.txt')">Browse…</button><br><br>
     <label><input type="checkbox" name="include_identified" {{ 'checked' if config.include_identified }} style="min-width:auto;width:auto;"> Include Identified Items</label><br><br>
     <button type="submit" class="btn">Save Config</button>
     <span id="config-status" style="margin-left:1rem;color:#888;"></span>
   </form>
+</div>
+
+<div id="picker-modal" class="modal-overlay" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="picker-title">Browse…</h3>
+      <button class="modal-x" type="button" onclick="closePicker()">✕</button>
+    </div>
+    <div class="picker-pathbar">
+      <button class="btn" type="button" onclick="pickerUp()">↑ Up</button>
+      <input id="picker-path" type="text" style="flex:1" onchange="pickerGoto(this.value)">
+    </div>
+    <div class="picker-list" id="picker-list"></div>
+    <div class="modal-foot">
+      <span id="picker-selected" style="flex:1;color:#888;"></span>
+      <button class="btn" type="button" onclick="closePicker()">Cancel</button>
+      <button class="btn" type="button" id="picker-select" onclick="pickerConfirm()" disabled>Select</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -205,6 +241,89 @@ document.getElementById('config-form').addEventListener('submit', async (ev) => 
     status.textContent = 'save failed: ' + e.message;
   }
 });
+
+// ---- file picker modal (driven by /api/browse, since browsers can't
+//      expose real filesystem paths from <input type="file">) ----
+let pickerTarget = null;   // the text input to populate
+let pickerExt = null;      // suffix filter, e.g. '.filter'
+let pickerCwd = '';        // currently listed directory
+let pickerParent = null;   // parent dir of cwd (for the Up button)
+let pickerChoice = null;   // selected file path
+
+function browsePath(inputName, ext) {
+  pickerTarget = document.forms['config-form'].elements[inputName];
+  pickerExt = ext;
+  pickerChoice = null;
+  document.getElementById('picker-title').textContent =
+    inputName === 'client_log_path' ? 'Select Client Log' : 'Select Loot Filter';
+  // start at the current value's directory if set, else home
+  pickerLoad(pickerTarget.value.trim());
+  document.getElementById('picker-modal').hidden = false;
+}
+
+function closePicker() {
+  document.getElementById('picker-modal').hidden = true;
+}
+
+async function pickerLoad(path) {
+  const q = new URLSearchParams();
+  if (path) q.set('path', path);
+  if (pickerExt) q.set('ext', pickerExt);
+  const sel = document.getElementById('picker-selected');
+  try {
+    const data = await (await fetch('/api/browse?' + q.toString())).json();
+    pickerCwd = data.path;
+    pickerParent = data.parent;
+    pickerChoice = null;
+    document.getElementById('picker-path').value = pickerCwd;
+    sel.textContent = '';
+    document.getElementById('picker-select').disabled = true;
+    const list = document.getElementById('picker-list');
+    list.innerHTML = '';
+    if (pickerParent) list.appendChild(pickerRow({name: '..', type: 'dir', path: pickerParent}));
+    for (const e of data.entries) list.appendChild(pickerRow(e));
+  } catch (e) {
+    sel.textContent = 'failed to list directory: ' + e.message;
+  }
+}
+
+function pickerRow(entry) {
+  const div = document.createElement('div');
+  div.className = 'picker-row' + (entry.type === 'dir' ? ' is-dir' : '');
+  div.textContent = (entry.type === 'dir' ? '📁 ' : '📄 ') + entry.name;
+  div.onclick = () => {
+    if (entry.type === 'dir') {
+      pickerLoad(entry.path);
+    } else {
+      pickerChoice = entry.path;
+      document.getElementById('picker-selected').textContent = entry.name;
+      document.getElementById('picker-select').disabled = false;
+      for (const r of document.querySelectorAll('.picker-row.selected')) r.classList.remove('selected');
+      div.classList.add('selected');
+    }
+  };
+  return div;
+}
+
+function pickerUp() {
+  if (pickerParent) pickerLoad(pickerParent);
+}
+
+function pickerGoto(value) {
+  if (value && value !== pickerCwd) pickerLoad(value);
+}
+
+function pickerConfirm() {
+  if (pickerChoice && pickerTarget) pickerTarget.value = pickerChoice;
+  closePicker();
+}
+
+// close the modal on Escape or overlay click
+(function () {
+  const modal = document.getElementById('picker-modal');
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePicker(); });
+  modal.addEventListener('click', (e) => { if (e.target === modal) closePicker(); });
+})();
 
 fetchStatus();
 </script>

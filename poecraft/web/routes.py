@@ -66,6 +66,45 @@ async def api_config(config: Config):
     return {"status": "saved"}
 
 
+@router.get("/api/browse")
+async def api_browse(path: str | None = None, ext: str | None = None):
+    """List a directory's contents for the config-page file pickers.
+
+    Browsers' <input type="file"> deliberately hide real filesystem paths, so
+    the pickers use this endpoint to navigate the local filesystem. Always
+    returns directories (for navigation) and files optionally filtered by
+    extension (`ext`, e.g. ".filter" or ".txt").
+    """
+    target = Path(path).expanduser() if path else Path.home()
+    # A file path (e.g. the field's current value) -> browse its parent.
+    if target.is_file():
+        target = target.parent
+    # Anything unreadable / non-existent falls back to the home directory.
+    if not target.is_dir():
+        target = Path.home()
+
+    entries: list[dict] = []
+    try:
+        children = sorted(
+            target.iterdir(),
+            key=lambda p: (not p.is_dir(), p.name.lower()),
+        )
+    except (PermissionError, OSError):
+        children = []
+    for child in children:
+        try:
+            if child.is_dir():
+                entries.append({"name": child.name, "type": "dir", "path": str(child)})
+            elif child.is_file():
+                if ext is None or child.suffix.lower() == ext.lower():
+                    entries.append({"name": child.name, "type": "file", "path": str(child)})
+        except (PermissionError, OSError):
+            continue  # unreadable entry — skip, don't abort the listing
+
+    parent = target.parent if target.parent != target else None
+    return {"path": str(target), "parent": str(parent) if parent else None, "entries": entries}
+
+
 @router.get("/api/leagues")
 async def api_leagues(request: Request):
     """Proxy the active client's league list."""
