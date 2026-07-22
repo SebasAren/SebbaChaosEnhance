@@ -4,75 +4,75 @@
   "context": "PoECraft v1. Step 6 polish: a systemd user service for background operation + an install script. The --config CLI flag already exists in poecraft/main.py. Mostly structural with light validation (systemd-analyze verify, bash -n) and a final manual verification against a real config. Depends on web-dashboard (the app must run end-to-end first). Settled in grill: POESESSID-only auth, manual in-game filter reload (no auto-reload/ydotool in v1), refresh driven by Client.txt zone changes.",
   "architecture": "systemd/poecraft.service: user unit, Type=simple, ExecStart=%h/.local/bin/poecraft (the uv tool install entrypoint), Restart=on-failure RestartSec=5, Environment=POECRAFT_CONFIG=%h/.config/poecraft/config.yaml, WantedBy=default.target. install.sh: uv tool install .; mkdir -p ~/.config/poecraft; cp -n config.example.yaml -> ~/.config/poecraft/config.yaml; mkdir -p ~/.config/systemd/user; cp systemd/poecraft.service; systemctl --user daemon-reload; echo next-step instructions. README.md: Install + Usage + Systemd sections. Confirm main.py --config flag is honored end-to-end (already present).",
   "created": "2026-07-22T14:55:43.054Z",
-  "updated": "2026-07-22T14:55:43.070Z",
+  "updated": "2026-07-22T16:36:56.353Z",
   "steps": [
     {
       "index": 1,
       "name": "systemd/poecraft.service user unit (structural)",
       "red": {
         "description": "none",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Create systemd/poecraft.service (Type=simple, ExecStart the poecraft entrypoint, Restart=on-failure RestartSec=5, Environment=POECRAFT_CONFIG=%h/.config/poecraft/config.yaml, WantedBy=default.target). Validate with systemd-analyze verify if available, else manual review.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 2,
       "name": "install.sh (structural)",
       "red": {
         "description": "none",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Create executable install.sh: uv tool install .; mkdir -p ~/.config/poecraft; cp -n config.example.yaml to ~/.config/poecraft/config.yaml; mkdir -p ~/.config/systemd/user; cp systemd/poecraft.service; systemctl --user daemon-reload; print next-step instructions. `bash -n install.sh` passes; design is idempotent (reruns don't clobber an existing config).",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 3,
       "name": "README install/usage docs (structural)",
       "red": {
         "description": "none",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Add Install + Usage + Systemd sections to README.md (uv tool install, edit ~/.config/poecraft/config.yaml with POESESSID + Client.txt path + filter path, systemctl --user enable --now poecraft, dashboard at http://127.0.0.1:8420, note manual in-game filter reload).",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 4,
       "name": "final end-to-end manual verification (structural)",
       "red": {
         "description": "none",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "With a real POESESSID config: uv tool install .; start the service; confirm the dashboard loads, the grid renders after a zone change, the filter file is rewritten with highlight-only rules, and /overlay redirects to /. Document any gotchas.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     }
   ],
   "notes": [],

@@ -1,0 +1,17 @@
+[Unit]
+Description=PoECraft — Chaos Recipe Filter Tool
+Documentation=https://github.com/sebas/poecraft
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Entry point installed by `uv tool install .` (~/.local/bin/poecraft)
+ExecStart=%h/.local/bin/poecraft
+# Config location (read by poecraft via the POECRAFT_CONFIG env var)
+Environment=POECRAFT_CONFIG=%h/.config/poecraft/config.yaml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
