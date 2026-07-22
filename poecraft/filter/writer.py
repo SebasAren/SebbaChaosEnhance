@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import os
 
-from poecraft.recipe.types import ItemClass, RecipeType
-
 from poecraft.filter.generator import generate_section
 from poecraft.filter.reader import read_filter, split_filter
+from poecraft.recipe.types import ItemClass, RecipeType
 
 
 def write_filter(path: os.PathLike | str, content: str) -> None:
@@ -39,9 +38,7 @@ def update_filter(
     """
     content = read_filter(path)
     before, _existing, after = split_filter(content)
-    section = generate_section(
-        missing_classes, recipe_type, include_identified, needs_lower_level
-    )
+    section = generate_section(missing_classes, recipe_type, include_identified, needs_lower_level)
     new_content = f"{before}{section}{after}"
     write_filter(path, new_content)
     return new_content != content

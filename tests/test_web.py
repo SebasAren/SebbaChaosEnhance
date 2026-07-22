@@ -56,9 +56,7 @@ def test_to_grid_assigns_set_index_per_item_and_none_for_unassigned() -> None:
         items={ItemClass.RINGS: [_item("ring-1", ItemClass.RINGS, x=2, y=3, w=1, h=1)]}
     )
     set1 = RecipeSet(
-        items={
-            ItemClass.HELMETS: [_item("helm-1", ItemClass.HELMETS, x=0, y=0, w=2, h=2)]
-        }
+        items={ItemClass.HELMETS: [_item("helm-1", ItemClass.HELMETS, x=0, y=0, w=2, h=2)]}
     )
     unassigned = [_item("surplus-ring", ItemClass.RINGS, x=10, y=11, w=1, h=1)]
 
@@ -118,9 +116,7 @@ class FakeClient:
         self._tabs = tabs
         self.requested_indices: list[int] | None = None
 
-    async def get_all_selected_tabs(
-        self, tab_indices: list[int]
-    ) -> dict[int, list[StashItem]]:
+    async def get_all_selected_tabs(self, tab_indices: list[int]) -> dict[int, list[StashItem]]:
         self.requested_indices = list(tab_indices)
         return self._tabs
 
@@ -233,9 +229,7 @@ def test_state_refresh_preserves_tab_index() -> None:
 
     status = asyncio.run(state.refresh(client, config, writer))
 
-    by_id = {
-        it.id: it for s in status.in_progress for arr in s.items.values() for it in arr
-    }
+    by_id = {it.id: it for s in status.in_progress for arr in s.items.values() for it in arr}
     assert by_id["r0"].stash_tab_index == 0
     assert by_id["r3"].stash_tab_index == 3
 
@@ -251,9 +245,7 @@ def _refresh(
 ) -> RecipeStatus:
     client = FakeClient(items or {0: [_raw_ring("r1"), _raw_ring("r2")]})
     writer = FakeFilterWriter()
-    config = Config(
-        recipe_type="chaos", set_threshold=1, loot_filter_path="/tmp/x.filter"
-    )
+    config = Config(recipe_type="chaos", set_threshold=1, loot_filter_path="/tmp/x.filter")
     return asyncio.run(state.refresh(client, config, writer))
 
 
@@ -544,7 +536,6 @@ def test_lifespan_wires_client_state_and_watcher(tmp_path) -> None:
     filter + log files are pre-created so refresh/update_filter succeed.
     """
     import poecraft.config as cfg_mod
-
     from poecraft.main import app
 
     log_file = tmp_path / "Client.txt"
@@ -659,9 +650,7 @@ def test_api_browse_lists_dirs_and_filters_files(tmp_path, monkeypatch) -> None:
     assert {"subdir", "my.filter", "notes.txt"} <= names
 
     # a file path (e.g. a field's current value) -> browse its parent dir
-    resp = client.get(
-        "/api/browse", params={"path": str(tmp_path / "my.filter"), "ext": ".filter"}
-    )
+    resp = client.get("/api/browse", params={"path": str(tmp_path / "my.filter"), "ext": ".filter"})
     assert resp.json()["path"] == str(tmp_path)
 
     # an unreadable / non-existent path falls back to home
@@ -704,9 +693,7 @@ def test_resolve_client_rebuilds_when_credentials_change() -> None:
     from poecraft.api.client import PoeApiClient
     from poecraft.web.routes import resolve_client
 
-    cfg_mod._config = Config(
-        account_name="new", league="NewLeague", session_id="new-sess"
-    )
+    cfg_mod._config = Config(account_name="new", league="NewLeague", session_id="new-sess")
     old = PoeApiClient("old", "OldLeague", SessionAuth("old-sess"))
     app_state = SimpleNamespace(client=old)
 

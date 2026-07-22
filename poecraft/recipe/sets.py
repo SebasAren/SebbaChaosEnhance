@@ -8,16 +8,15 @@ assignment and surplus tracking. Pure Python — no network or filesystem.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from poecraft.recipe import classifier
 from poecraft.recipe.types import (
-    FrameType,
-    ItemClass,
-    RecipeType,
     RECIPE_ILVL_RANGES,
     RECIPE_SET_REQUIREMENTS,
     WEAPON_SLOT_REQUIRED_UNITS,
+    FrameType,
+    ItemClass,
+    RecipeType,
 )
 
 
@@ -32,7 +31,7 @@ class EnhancedItem:
     frame_type: FrameType
     identified: bool
     icon: str
-    derived_item_class: Optional[ItemClass]
+    derived_item_class: ItemClass | None
     stash_tab_index: int
     x: int
     y: int
@@ -70,9 +69,7 @@ def _in_recipe_ilvl_range(item_level: int, recipe_type: RecipeType) -> bool:
     return low <= item_level <= high
 
 
-def is_eligible(
-    item_data: dict, recipe_type: RecipeType, include_identified: bool
-) -> bool:
+def is_eligible(item_data: dict, recipe_type: RecipeType, include_identified: bool) -> bool:
     """Whether a raw API item dict qualifies for the given recipe."""
     if item_data.get("frameType") != FrameType.RARE:
         return False
@@ -80,9 +77,7 @@ def is_eligible(
         return False
     if not _in_recipe_ilvl_range(item_data.get("ilvl", 0), recipe_type):
         return False
-    if classifier.classify_item(item_data) is None:
-        return False
-    return True
+    return classifier.classify_item(item_data) is not None
 
 
 def filter_stash_items(
@@ -141,9 +136,7 @@ class RecipeSet:
         return len(self.items.get(cls, []))
 
     def _weapon_units(self) -> int:
-        return self._count(ItemClass.ONE_HAND_WEAPONS) + 2 * self._count(
-            ItemClass.TWO_HAND_WEAPONS
-        )
+        return self._count(ItemClass.ONE_HAND_WEAPONS) + 2 * self._count(ItemClass.TWO_HAND_WEAPONS)
 
     def can_accept(self, item: EnhancedItem) -> bool:
         """Whether this set still has room for the item's class."""
@@ -169,9 +162,7 @@ class RecipeSet:
     def missing(self) -> set[ItemClass]:
         """Classes still needed to complete this set."""
         missing: set[ItemClass] = {
-            cls
-            for cls, required in RECIPE_SET_REQUIREMENTS.items()
-            if self._count(cls) < required
+            cls for cls, required in RECIPE_SET_REQUIREMENTS.items() if self._count(cls) < required
         }
         if self._weapon_units() < WEAPON_SLOT_REQUIRED_UNITS:
             missing.add(ItemClass.ONE_HAND_WEAPONS)
@@ -209,7 +200,7 @@ class RecipeStatus:
         """
         items: list[dict] = []
         for set_index, recipe_set in enumerate(self.in_progress):
-            for cls, assigned in recipe_set.items.items():
+            for _cls, assigned in recipe_set.items.items():
                 for item in assigned:
                     items.append(self._grid_item(item, set_index))
         for item in self.unassigned_items:
@@ -225,9 +216,7 @@ class RecipeStatus:
             "w": item.w,
             "h": item.h,
             "set_index": set_index,
-            "class": item.derived_item_class.value
-            if item.derived_item_class is not None
-            else None,
+            "class": item.derived_item_class.value if item.derived_item_class is not None else None,
         }
 
 
@@ -259,9 +248,8 @@ def generate_sets(
     # only affects the chaos recipe's filter output (its ItemLevel upper
     # bound); regal/exalted are always False since the flag is irrelevant to
     # them. 'or not eligible' covers the explicit zero-items case.
-    needs_lower_level = (
-        recipe_type not in (RecipeType.REGAL, RecipeType.EXALTED)
-        and (len(eligible) < set_threshold or not eligible)
+    needs_lower_level = recipe_type not in (RecipeType.REGAL, RecipeType.EXALTED) and (
+        len(eligible) < set_threshold or not eligible
     )
 
     recipe_sets = [RecipeSet() for _ in range(set_threshold)]

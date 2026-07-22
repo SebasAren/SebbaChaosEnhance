@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Optional
 from urllib.parse import quote
 
 import httpx
@@ -80,7 +79,7 @@ class PoeApiClient:
         self.league = league
         self.auth = auth
         self._rate_limit = RateLimitState()
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create the httpx client with auth cookies."""
@@ -101,10 +100,10 @@ class PoeApiClient:
     async def _get(
         self,
         url: str,
-        params: Optional[dict] = None,
+        params: dict | None = None,
         *,
         max_retries: int = 3,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Authenticated GET with rate-limit handling and 429 backoff/retry.
 
         Retries up to ``max_retries`` times on 429 Too Many Requests, honoring
@@ -143,9 +142,7 @@ class PoeApiClient:
                     )
                     return None
                 if resp.status_code in (401, 403):
-                    logger.error(
-                        "Auth error %d - check your POESESSID", resp.status_code
-                    )
+                    logger.error("Auth error %d - check your POESESSID", resp.status_code)
                     return None
                 logger.warning("API returned %d: %s", resp.status_code, resp.text[:200])
                 return None
@@ -217,9 +214,7 @@ class PoeApiClient:
             logger.error("Failed to parse tab %d contents: %s", tab_index, e)
             return StashTabContents()
 
-    async def get_all_selected_tabs(
-        self, tab_indices: list[int]
-    ) -> dict[int, list[StashItem]]:
+    async def get_all_selected_tabs(self, tab_indices: list[int]) -> dict[int, list[StashItem]]:
         """Fetch contents for multiple stash tabs with rate limit handling.
 
         Args:

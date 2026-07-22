@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from poecraft.recipe.types import ItemClass, RecipeType
-
 from poecraft.filter.generator import (
     CLASS_COLORS,
     _parse_hex,
@@ -13,6 +11,7 @@ from poecraft.filter.generator import (
     generate_section,
 )
 from poecraft.filter.reader import MARKER_END, MARKER_START
+from poecraft.recipe.types import ItemClass, RecipeType
 
 
 def test_parse_hex_full_orange() -> None:
@@ -71,8 +70,7 @@ def test_generate_rule_chance_recipe_uses_chance_ilvl_range() -> None:
         ),
         (
             ItemClass.TWO_HAND_WEAPONS,
-            'Class "Two Hand Swords" "Two Hand Axes" "Two Hand Maces" '
-            '"Staves" "Warstaves" "Bows"',
+            'Class "Two Hand Swords" "Two Hand Axes" "Two Hand Maces" "Staves" "Warstaves" "Bows"',
         ),
     ],
 )
@@ -92,8 +90,7 @@ def test_generate_rule_weapons_never_emit_invalid_class_names() -> None:
         assert "Two Hand Weapons" not in rule
         # each weapon rule must enumerate real, quoted weapon classes
         assert any(
-            token in rule
-            for token in ('"Daggers"', '"Two Hand Swords"', '"Staves"', '"Bows"')
+            token in rule for token in ('"Daggers"', '"Two Hand Swords"', '"Staves"', '"Bows"')
         )
 
 
@@ -128,16 +125,12 @@ def test_generate_rule_needs_lower_level_does_not_affect_regal() -> None:
 
 
 def test_generate_section_threads_needs_lower_level() -> None:
-    section = generate_section(
-        {ItemClass.BOOTS}, RecipeType.CHAOS, needs_lower_level=False
-    )
+    section = generate_section({ItemClass.BOOTS}, RecipeType.CHAOS, needs_lower_level=False)
     assert "ItemLevel >= 60" in section
     assert "ItemLevel <= 74" not in section
 
 
-def test_generate_section_highlight_only_missing_never_hide_wrapped_in_markers() -> (
-    None
-):
+def test_generate_section_highlight_only_missing_never_hide_wrapped_in_markers() -> None:
     section = generate_section({ItemClass.RINGS, ItemClass.BOOTS}, RecipeType.CHAOS)
     assert MARKER_START in section
     assert MARKER_END in section
@@ -165,7 +158,7 @@ def test_jewelry_shares_one_color() -> None:
     styles = {cls: CLASS_COLORS[cls] for cls in JEWELRY}
     assert len({tuple(s.items()) for s in styles.values()}) == 1
     # that shared color is red
-    r, g, b, a = _parse_hex(styles[ItemClass.RINGS]["bg"])
+    r, g, b, _a = _parse_hex(styles[ItemClass.RINGS]["bg"])
     assert r > 150 and g < 80 and b < 80
 
 
@@ -187,9 +180,5 @@ def test_non_jewelry_slots_differ_from_jewelry_and_each_other(
     this_bg = CLASS_COLORS[item_class]["bg"]
     assert this_bg != jewelry_bg
     # distinct from every other non-jewelry slot
-    others = [
-        CLASS_COLORS[c]["bg"]
-        for c in ItemClass
-        if c not in JEWELRY and c is not item_class
-    ]
+    others = [CLASS_COLORS[c]["bg"] for c in ItemClass if c not in JEWELRY and c is not item_class]
     assert this_bg not in others

@@ -7,9 +7,8 @@ Never emit Hide. Classes that aren't missing are left to the user's filter.
 
 from __future__ import annotations
 
-from poecraft.recipe.types import ItemClass, RecipeType, RECIPE_ILVL_RANGES
 from poecraft.filter.reader import MARKER_END, MARKER_START
-
+from poecraft.recipe.types import RECIPE_ILVL_RANGES, ItemClass, RecipeType
 
 # Definition order of ItemClass, used for deterministic rule ordering.
 _CLASS_ORDER: dict[ItemClass, int] = {cls: i for i, cls in enumerate(ItemClass)}

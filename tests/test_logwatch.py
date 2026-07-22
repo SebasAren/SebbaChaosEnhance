@@ -43,14 +43,7 @@ def test_parse_zone_change_non_matching_returns_none(line: str) -> None:
 def test_default_log_path_discovers_steam_install(tmp_path: Path) -> None:
     # Build a fake Steam root: <root>/steamapps/common/Path of Exile/logs/Client.txt
     steam_root = tmp_path / "steam"
-    client_txt = (
-        steam_root
-        / "steamapps"
-        / "common"
-        / "Path of Exile"
-        / "logs"
-        / "Client.txt"
-    )
+    client_txt = steam_root / "steamapps" / "common" / "Path of Exile" / "logs" / "Client.txt"
     client_txt.parent.mkdir(parents=True)
     client_txt.write_text("")
 
@@ -74,9 +67,7 @@ def test_resolve_log_path_explicit_config_wins(tmp_path: Path) -> None:
 
 def test_resolve_log_path_falls_back_to_default(tmp_path: Path) -> None:
     steam_root = tmp_path / "steam"
-    client_txt = (
-        steam_root / "steamapps" / "common" / "Path of Exile" / "logs" / "Client.txt"
-    )
+    client_txt = steam_root / "steamapps" / "common" / "Path of Exile" / "logs" / "Client.txt"
     client_txt.parent.mkdir(parents=True)
     client_txt.write_text("")
 
@@ -101,10 +92,7 @@ def test_process_new_extracts_single_zone_change_among_noise(tmp_path: Path) -> 
 
 def test_process_new_no_zone_change_returns_empty(tmp_path: Path) -> None:
     watcher = ClientLogWatcher(tmp_path / "Client.txt", on_zone_change=_noop)
-    block = (
-        "[INFO Client 340] : Connected to ams.login.pathofexile.com.\n"
-        "some chat line\n"
-    )
+    block = "[INFO Client 340] : Connected to ams.login.pathofexile.com.\nsome chat line\n"
     assert watcher._process_new(block) == []
 
 
@@ -189,9 +177,7 @@ def test_start_skips_historical_zone_changes(tmp_path: Path) -> None:
         "[INFO Client 340] : You have entered Old Area 2.\n"
     )
     callback = RecordingCallback()
-    watcher = ClientLogWatcher(
-        client_txt, on_zone_change=callback, poll_interval=0.01
-    )
+    watcher = ClientLogWatcher(client_txt, on_zone_change=callback, poll_interval=0.01)
 
     async def driver() -> None:
         task = asyncio.create_task(watcher.start())
@@ -213,9 +199,7 @@ def test_start_stop_lifecycle(tmp_path: Path) -> None:
     client_txt = tmp_path / "Client.txt"
     client_txt.write_text("")  # start empty
     callback = RecordingCallback()
-    watcher = ClientLogWatcher(
-        client_txt, on_zone_change=callback, poll_interval=0.01
-    )
+    watcher = ClientLogWatcher(client_txt, on_zone_change=callback, poll_interval=0.01)
 
     async def driver() -> None:
         task = asyncio.create_task(watcher.start())

@@ -16,7 +16,7 @@ MARKER_END = "# poecraft:chaos-recipe end"
 
 def read_filter(path: os.PathLike | str) -> str:
     """Read a .filter file's full contents as a string."""
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         return fh.read()
 
 

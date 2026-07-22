@@ -7,17 +7,17 @@ import json
 
 import pytest
 
+from poecraft.recipe.sets import (
+    EnhancedItem,
+    count_items,
+    filter_stash_items,
+    generate_sets,
+)
 from poecraft.recipe.types import (
     ALL_RECIPE_CLASSES,
     FrameType,
     ItemClass,
     RecipeType,
-)
-from poecraft.recipe.sets import (
-    EnhancedItem,
-    filter_stash_items,
-    count_items,
-    generate_sets,
 )
 
 
@@ -60,22 +60,22 @@ def _many(cls: ItemClass, count: int, prefix: str) -> list[dict]:
 
 def _ei(**overrides) -> EnhancedItem:
     """Build an EnhancedItem with sensible defaults for unspecified fields."""
-    defaults = dict(
-        id="abc",
-        name="",
-        type_line="Some Base",
-        item_level=70,
-        frame_type=FrameType.RARE,
-        identified=False,
-        icon="",
-        derived_item_class=None,
-        stash_tab_index=0,
-        x=0,
-        y=0,
-        w=1,
-        h=1,
-        influences={},
-    )
+    defaults = {
+        "id": "abc",
+        "name": "",
+        "type_line": "Some Base",
+        "item_level": 70,
+        "frame_type": FrameType.RARE,
+        "identified": False,
+        "icon": "",
+        "derived_item_class": None,
+        "stash_tab_index": 0,
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1,
+        "influences": {},
+    }
     defaults.update(overrides)
     return EnhancedItem(**defaults)
 
@@ -112,21 +112,21 @@ class TestEnhancedItemIlvlEligibility:
 
 def _raw_item(**overrides) -> dict:
     """A raw API item dict mirroring StashItem (camelCase keys)."""
-    defaults = dict(
-        id="item-id",
-        name="",
-        typeLine="Some Base",
-        ilvl=70,
-        frameType=FrameType.RARE,
-        identified=False,
-        icon="",
-        category={},
-        influences={},
-        x=0,
-        y=0,
-        w=1,
-        h=1,
-    )
+    defaults = {
+        "id": "item-id",
+        "name": "",
+        "typeLine": "Some Base",
+        "ilvl": 70,
+        "frameType": FrameType.RARE,
+        "identified": False,
+        "icon": "",
+        "category": {},
+        "influences": {},
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1,
+    }
     defaults.update(overrides)
     return defaults
 
@@ -176,9 +176,7 @@ class TestFilterStashItems:
             identified=True,
             icon=_icon("2DItems/Rings/TopazSapphire"),
         )
-        result = filter_stash_items(
-            [identified_ring], RecipeType.CHAOS, include_identified=True
-        )
+        result = filter_stash_items([identified_ring], RecipeType.CHAOS, include_identified=True)
         assert [item.id for item in result] == ["id-ring"]
 
     def test_non_chaos_recipe_uses_own_ilvl_range(self):
@@ -311,14 +309,8 @@ class TestGenerateSetsFill:
             assert recipe_set.is_complete is True
 
         # one set's weapon slot is the 2H, the other's is the pair of 1H
-        two_hand_sets = [
-            s for s in status.in_progress
-            if ItemClass.TWO_HAND_WEAPONS in s.items
-        ]
-        one_hand_sets = [
-            s for s in status.in_progress
-            if ItemClass.ONE_HAND_WEAPONS in s.items
-        ]
+        two_hand_sets = [s for s in status.in_progress if ItemClass.TWO_HAND_WEAPONS in s.items]
+        one_hand_sets = [s for s in status.in_progress if ItemClass.ONE_HAND_WEAPONS in s.items]
         assert len(two_hand_sets) == 1
         assert len(two_hand_sets[0].items[ItemClass.TWO_HAND_WEAPONS]) == 1
         assert len(one_hand_sets) == 1
@@ -326,9 +318,7 @@ class TestGenerateSetsFill:
 
         # 2 surplus helmets routed to unassigned_items
         assert len(status.unassigned_items) == 2
-        assert {
-            item.derived_item_class for item in status.unassigned_items
-        } == {ItemClass.HELMETS}
+        assert {item.derived_item_class for item in status.unassigned_items} == {ItemClass.HELMETS}
         assert {item.id for item in status.unassigned_items} == {
             "helm-2",
             "helm-3",

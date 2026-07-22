@@ -11,10 +11,10 @@ from __future__ import annotations
 import base64
 import json
 
-from poecraft.recipe.types import ItemClass, RecipeType
-from poecraft.recipe.sets import generate_sets
 from poecraft.filter.reader import MARKER_END, MARKER_START
 from poecraft.filter.writer import update_filter
+from poecraft.recipe.sets import generate_sets
+from poecraft.recipe.types import ItemClass, RecipeType
 
 
 def _icon(f_path: str) -> str:
@@ -72,7 +72,7 @@ def test_recipe_core_missing_classes_drive_filter(tmp_path) -> None:
     assert status.needs_lower_level is False
 
     p = tmp_path / "integration.filter"
-    p.write_text("# user filter\nShow\n    Class \"Currency\"\n")
+    p.write_text('# user filter\nShow\n    Class "Currency"\n')
 
     changed = update_filter(
         p,

@@ -7,13 +7,12 @@ from __future__ import annotations
 
 import asyncio
 import re
+from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
-from typing import Awaitable, Callable, Protocol, Sequence
+from typing import Protocol
 
 # Matches: [INFO Client <pid>] : You have entered <Area Name>.
-_ZONE_CHANGE_RE = re.compile(
-    r"\[INFO Client \d+\] : You have entered (?P<area>.+)\.$"
-)
+_ZONE_CHANGE_RE = re.compile(r"\[INFO Client \d+\] : You have entered (?P<area>.+)\.$")
 
 # Relative location of the PoE Client.txt inside a Steam install.
 _CLIENT_LOG_REL = Path("steamapps") / "common" / "Path of Exile" / "logs" / "Client.txt"

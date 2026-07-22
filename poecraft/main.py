@@ -30,9 +30,7 @@ logger = logging.getLogger("poecraft")
 async def lifespan(app: FastAPI):
     """App lifespan: wire client + state + logwatch, initial refresh, graceful stop."""
     config = get_config()
-    logger.info(
-        "PoECraft starting — league=%s, tabs=%s", config.league, config.stash_tabs
-    )
+    logger.info("PoECraft starting — league=%s, tabs=%s", config.league, config.stash_tabs)
 
     auth = SessionAuth(config.session_id)
     client = PoeApiClient(config.account_name, config.league, auth)
@@ -60,7 +58,7 @@ async def lifespan(app: FastAPI):
                     get_config(),
                     filter_writer,
                 )
-            except Exception as exc:  # noqa: BLE001 — don't kill the watcher
+            except Exception as exc:
                 logger.warning("Refresh on zone change failed: %s", exc)
 
         watcher = ClientLogWatcher(log_path, on_zone_change=on_zone_change)
@@ -89,7 +87,7 @@ async def lifespan(app: FastAPI):
                         get_config(),
                         filter_writer,
                     )
-                except Exception as exc:  # noqa: BLE001 — don't kill the loop
+                except Exception as exc:
                     logger.warning("Periodic refresh failed: %s", exc)
 
         periodic_task = asyncio.create_task(periodic_refresh())
@@ -101,7 +99,7 @@ async def lifespan(app: FastAPI):
     try:
         await state.refresh(client, config, filter_writer)
         logger.info("Initial refresh complete")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Initial refresh failed: %s", exc)
 
     yield

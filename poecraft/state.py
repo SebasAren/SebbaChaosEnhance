@@ -31,9 +31,7 @@ class RecipeState:
         # — which would race on the API client and double-hit the rate limit.
         self._refresh_lock = asyncio.Lock()
 
-    async def refresh(
-        self, client: Any, config: Config, filter_writer: Any
-    ) -> RecipeStatus:
+    async def refresh(self, client: Any, config: Config, filter_writer: Any) -> RecipeStatus:
         """Run one refresh cycle and store the resulting status.
 
         ``client`` must expose ``async get_all_selected_tabs(indices)``; the
@@ -105,9 +103,7 @@ class RecipeState:
             "item_counts": {cls.value: n for cls, n in status.item_counts.items()},
             "missing_classes": sorted(cls.value for cls in status.missing_classes),
             "grid": status.to_grid(),
-            "last_refresh": self.last_refresh.isoformat()
-            if self.last_refresh
-            else None,
+            "last_refresh": self.last_refresh.isoformat() if self.last_refresh else None,
         }
 
     def subscribe(self) -> asyncio.Queue[dict]:

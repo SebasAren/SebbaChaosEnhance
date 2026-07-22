@@ -1,6 +1,7 @@
 """Item classes, recipe types, and game constants for Path of Exile."""
 
 from __future__ import annotations
+
 from enum import Enum
 
 
@@ -70,24 +71,40 @@ CATEGORY_CLASS_MAP: dict[str, ItemClass] = {
 }
 
 TWO_HAND_WEAPON_TYPES = {
-    "TwoHandWeapons", "Two Hand Axes", "Two Hand Maces",
-    "Two Hand Swords", "Staves", "Warstaves", "Bows",
+    "TwoHandWeapons",
+    "Two Hand Axes",
+    "Two Hand Maces",
+    "Two Hand Swords",
+    "Staves",
+    "Warstaves",
+    "Bows",
 }
 
 ONE_HAND_WEAPON_TYPES = {
-    "OneHandWeapons", "One Hand Axes", "One Hand Maces",
-    "One Hand Swords", "Daggers", "Claws", "Wands",
-    "Sceptres", "Shields",
+    "OneHandWeapons",
+    "One Hand Axes",
+    "One Hand Maces",
+    "One Hand Swords",
+    "Daggers",
+    "Claws",
+    "Wands",
+    "Sceptres",
+    "Shields",
 }
 
 CHAOS_RECIPE_SLOTS = {
-    ItemClass.RINGS, ItemClass.AMULETS, ItemClass.BELTS,
-    ItemClass.HELMETS, ItemClass.GLOVES, ItemClass.BOOTS,
+    ItemClass.RINGS,
+    ItemClass.AMULETS,
+    ItemClass.BELTS,
+    ItemClass.HELMETS,
+    ItemClass.GLOVES,
+    ItemClass.BOOTS,
     ItemClass.BODY_ARMOURS,
 }
 
 ALL_RECIPE_CLASSES = CHAOS_RECIPE_SLOTS | {
-    ItemClass.ONE_HAND_WEAPONS, ItemClass.TWO_HAND_WEAPONS,
+    ItemClass.ONE_HAND_WEAPONS,
+    ItemClass.TWO_HAND_WEAPONS,
 }
 
 # Per-class item counts required for ONE full recipe set. The composition is

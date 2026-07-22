@@ -17,20 +17,19 @@ from __future__ import annotations
 import base64
 import json
 import logging
-from typing import Optional
 
 from poecraft.recipe.types import (
-    ItemClass,
     CATEGORY_CLASS_MAP,
     ICON_CLASS_MAP,
-    TWO_HAND_WEAPON_TYPES,
     ONE_HAND_WEAPON_TYPES,
+    TWO_HAND_WEAPON_TYPES,
+    ItemClass,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def classify_from_icon(icon_url: str) -> Optional[ItemClass]:
+def classify_from_icon(icon_url: str) -> ItemClass | None:
     """Derive item class from a PoE CDN icon URL."""
     if not icon_url:
         return None
@@ -85,7 +84,7 @@ def classify_from_icon(icon_url: str) -> Optional[ItemClass]:
         return None
 
 
-def classify_from_category(category: dict) -> Optional[ItemClass]:
+def classify_from_category(category: dict) -> ItemClass | None:
     """Derive item class from the API 'category' field.
 
     Category is a dict like {"ring": []} or {"armour": ["helmet"]}.
@@ -121,7 +120,7 @@ def classify_from_category(category: dict) -> Optional[ItemClass]:
     return None
 
 
-def classify_item(item_data: dict) -> Optional[ItemClass]:
+def classify_item(item_data: dict) -> ItemClass | None:
     """Classify an item using icon URL and category data.
 
     Prefers icon-based classification (more reliable).
