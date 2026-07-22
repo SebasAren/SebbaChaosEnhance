@@ -69,13 +69,13 @@ async def lifespan(app: FastAPI):
         app.state.watcher = None
         logger.info("No Client.txt resolved; logwatch disabled")
 
-    # Periodic refresh fallback: fires every refresh_interval seconds. This is
-    # the only auto-refresh when logwatch is disabled (no Client.txt), and a
-    # safety net otherwise — RecipeState._refresh_lock serializes overlaps so
-    # it can run alongside the zone-change watcher without double-fetching.
+    # Periodic refresh fallback: fires every refresh_interval seconds, but
+    # ONLY when logwatch is disabled (no Client.txt resolved). When the
+    # zone-change watcher is active, it is the sole auto-refresh trigger —
+    # running the timer too would just re-fetch the same tabs on a clock.
     # 0 disables it (manual refresh only).
     periodic_task: asyncio.Task | None = None
-    if config.refresh_interval > 0:
+    if config.refresh_interval > 0 and watcher is None:
 
         async def periodic_refresh() -> None:
             while True:
@@ -91,9 +91,10 @@ async def lifespan(app: FastAPI):
                     logger.warning("Periodic refresh failed: %s", exc)
 
         periodic_task = asyncio.create_task(periodic_refresh())
-        logger.info("Periodic refresh every %ds", config.refresh_interval)
+        logger.info("Periodic refresh every %ds (logwatch disabled)", config.refresh_interval)
     else:
-        logger.info("Periodic refresh disabled (refresh_interval=0)")
+        reason = "refresh_interval=0" if config.refresh_interval <= 0 else "logwatch active"
+        logger.info("Periodic refresh disabled (%s)", reason)
 
     # Initial refresh on startup (defensive: never crash the app on API/filter errors).
     try:
