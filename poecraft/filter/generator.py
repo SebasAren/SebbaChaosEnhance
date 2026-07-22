@@ -29,16 +29,28 @@ CLASS_COLORS: dict[ItemClass, dict[str, str]] = {
     ItemClass.TWO_HAND_WEAPONS: {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"},
 }
 
+# The full argument emitted after `Class ` for each item class. Every class
+# is quoted (PoE requires quotes for multi-word names like "Body Armours").
+# Weapons are enumerated explicitly: PoE has no "One Hand Weapons" or
+# "Two Hand Weapons" item class, so a substring like "One Hand" would miss
+# Daggers/Wands/Sceptres/Bows/Staves. Mirrors ChaosRecipeEnhancer's managers.
 CLASS_FILTER_NAMES: dict[ItemClass, str] = {
-    ItemClass.RINGS: "Rings",
-    ItemClass.AMULETS: "Amulets",
-    ItemClass.BELTS: "Belts",
-    ItemClass.HELMETS: "Helmets",
-    ItemClass.GLOVES: "Gloves",
-    ItemClass.BOOTS: "Boots",
-    ItemClass.BODY_ARMOURS: "Body Armours",
-    ItemClass.ONE_HAND_WEAPONS: "One Hand Weapons",
-    ItemClass.TWO_HAND_WEAPONS: "Two Hand Weapons",
+    ItemClass.RINGS: '"Rings"',
+    ItemClass.AMULETS: '"Amulets"',
+    ItemClass.BELTS: '"Belts"',
+    ItemClass.HELMETS: '"Helmets"',
+    ItemClass.GLOVES: '"Gloves"',
+    ItemClass.BOOTS: '"Boots"',
+    ItemClass.BODY_ARMOURS: '"Body Armours"',
+    ItemClass.ONE_HAND_WEAPONS: (
+        '"Daggers" "One Hand Axes" "One Hand Maces" "One Hand Swords" '
+        '"Rune Daggers" "Sceptres" "Thrusting One Hand Swords" "Wands" '
+        '"Claws" "Shields"'
+    ),
+    ItemClass.TWO_HAND_WEAPONS: (
+        '"Two Hand Swords" "Two Hand Axes" "Two Hand Maces" '
+        '"Staves" "Warstaves" "Bows"'
+    ),
 }
 
 DEFAULT_STYLE: list[str] = [
@@ -80,10 +92,10 @@ def generate_rule(
     """
     colors = CLASS_COLORS[item_class]
     low, high = RECIPE_ILVL_RANGES[recipe_type]
-    name = CLASS_FILTER_NAMES[item_class]
+    class_arg = CLASS_FILTER_NAMES[item_class]
 
     lines: list[str] = ["Show"]
-    lines.append(f'Class "{name}"')
+    lines.append(f"Class {class_arg}")
     lines.append("Rarity Rare")
     if not include_identified:
         lines.append("Identified False")

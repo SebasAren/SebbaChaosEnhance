@@ -58,8 +58,17 @@ def test_generate_rule_chance_recipe_uses_chance_ilvl_range() -> None:
     "item_class, expected_class_line",
     [
         (ItemClass.BODY_ARMOURS, 'Class "Body Armours"'),
-        (ItemClass.ONE_HAND_WEAPONS, 'Class "One Hand Weapons"'),
-        (ItemClass.TWO_HAND_WEAPONS, 'Class "Two Hand Weapons"'),
+        (
+            ItemClass.ONE_HAND_WEAPONS,
+            'Class "Daggers" "One Hand Axes" "One Hand Maces" "One Hand Swords" '
+            '"Rune Daggers" "Sceptres" "Thrusting One Hand Swords" "Wands" '
+            '"Claws" "Shields"',
+        ),
+        (
+            ItemClass.TWO_HAND_WEAPONS,
+            'Class "Two Hand Swords" "Two Hand Axes" "Two Hand Maces" '
+            '"Staves" "Warstaves" "Bows"',
+        ),
     ],
 )
 def test_generate_rule_multi_word_class_names_quoted(
@@ -67,6 +76,20 @@ def test_generate_rule_multi_word_class_names_quoted(
 ) -> None:
     rule = generate_rule(item_class, RecipeType.CHAOS)
     assert expected_class_line in rule
+
+
+def test_generate_rule_weapons_never_emit_invalid_class_names() -> None:
+    """Regression: 'One Hand Weapons'/'Two Hand Weapons' are not real PoE item
+    classes and make the loot filter invalid in-game."""
+    for cls in (ItemClass.ONE_HAND_WEAPONS, ItemClass.TWO_HAND_WEAPONS):
+        rule = generate_rule(cls, RecipeType.CHAOS)
+        assert "One Hand Weapons" not in rule
+        assert "Two Hand Weapons" not in rule
+        # each weapon rule must enumerate real, quoted weapon classes
+        assert any(
+            token in rule
+            for token in ('"Daggers"', '"Two Hand Swords"', '"Staves"', '"Bows"')
+        )
 
 
 def test_generate_section_highlight_only_missing_never_hide_wrapped_in_markers() -> None:
