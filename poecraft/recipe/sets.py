@@ -96,7 +96,7 @@ def filter_stash_items(
                 name=raw.get("name", ""),
                 type_line=raw.get("typeLine", ""),
                 item_level=raw.get("ilvl", 0),
-                frame_type=raw.get("frameType"),
+                frame_type=FrameType(raw.get("frameType", FrameType.NORMAL)),
                 identified=raw.get("identified", False),
                 icon=raw.get("icon", ""),
                 derived_item_class=classifier.classify_item(raw),

@@ -1,6 +1,7 @@
 {
   "verify": [
     "uv run ruff check .",
+    "uv run ty check poecraft",
     "uv run pytest -q"
   ]
 }

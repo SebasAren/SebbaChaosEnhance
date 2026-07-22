@@ -146,7 +146,7 @@ def generate_section(
     """
     body = "\n\n".join(
         generate_rule(cls, recipe_type, include_identified, needs_lower_level)
-        for cls in sorted(missing_classes, key=_CLASS_ORDER.get)
+        for cls in sorted(missing_classes, key=lambda c: _CLASS_ORDER[c])
     )
     if body:
         return f"{MARKER_START}\n{body}\n{MARKER_END}\n"
