@@ -89,3 +89,21 @@ CHAOS_RECIPE_SLOTS = {
 ALL_RECIPE_CLASSES = CHAOS_RECIPE_SLOTS | {
     ItemClass.ONE_HAND_WEAPONS, ItemClass.TWO_HAND_WEAPONS,
 }
+
+# Per-class item counts required for ONE full recipe set. The composition is
+# identical across recipe types (chaos/regal/chance/exalted); only the ilvl
+# ranges differ (see RECIPE_ILVL_RANGES).
+RECIPE_SET_REQUIREMENTS: dict[ItemClass, int] = {
+    ItemClass.RINGS: 2,
+    ItemClass.AMULETS: 1,
+    ItemClass.BELTS: 1,
+    ItemClass.HELMETS: 1,
+    ItemClass.GLOVES: 1,
+    ItemClass.BOOTS: 1,
+    ItemClass.BODY_ARMOURS: 1,
+}
+
+# The weapon slot is shared by one-hand and two-hand weapons and is satisfied
+# by EITHER two one-hand weapons OR one two-hand weapon. A two-hand weapon
+# contributes 2 units (fills the slot alone); a one-hand weapon contributes 1.
+WEAPON_SLOT_REQUIRED_UNITS = 2

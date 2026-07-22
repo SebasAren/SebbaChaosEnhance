@@ -4,7 +4,7 @@
   "context": "PoECraft v1 — a Linux chaos-recipe filter tool (FastAPI). This plan implements the pure-Python recipe core in poecraft/recipe/sets.py: turning raw PoE API stash items into recipe-eligible EnhancedItems and generating in-progress chaos/regal/chance/exalted sets with per-item→set assignment (so the quad-tab grid renderer can color each cell by its assigned set) and surplus tracking. Fully unit-testable; no network or filesystem dependencies. Pre-existing and complete: poecraft/recipe/types.py (ItemClass, RecipeType, RECIPE_ILVL_RANGES, FrameType, CHAOS_RECIPE_SLOTS), poecraft/recipe/classifier.py (classify_item(item) -> ItemClass | None), poecraft/config.py. NOT yet present: any tests, a test framework, or a jj/git repo. Out of scope (later plans): filter manipulation, Client.txt logwatch, web UI.",
   "architecture": "New module poecraft/recipe/sets.py. EnhancedItem dataclass (id, name, type_line, item_level, frame_type, identified, icon, derived_item_class: ItemClass | None, stash_tab_index, x, y, w, h, influences) with properties is_rare, is_chaos_eligible, is_regal_eligible, is_chance_eligible, is_exalted_eligible. RecipeSet dataclass (items: dict[ItemClass, EnhancedItem], missing: set[ItemClass], is_complete: bool). RecipeStatus dataclass (completed_sets: int, in_progress: list[RecipeSet], missing_classes: set[ItemClass], item_counts: dict[ItemClass, int], unassigned_items: list[EnhancedItem]) — NOTE: needs_lower_level dropped, unassigned_items added. Functions: filter_stash_items(raw_items, recipe_type, include_identified=False) -> list[EnhancedItem] (classify via classifier.classify_item, ilvl via RECIPE_ILVL_RANGES, rarity == FrameType.RARE, identified filter); count_items(items) -> dict[ItemClass, int]; generate_sets(items, recipe_type, set_threshold, include_identified=False) -> RecipeStatus. Algorithm: create set_threshold empty sets; sort items two-hand weapons first then by class; greedily place each item into the first set still missing its class; overflow -> unassigned_items. Tests under tests/ via pytest; raw item dicts mirror api/models.StashItem shape (camelCase keys).",
   "created": "2026-07-22T14:50:31.351Z",
-  "updated": "2026-07-22T15:01:45.770Z",
+  "updated": "2026-07-22T15:26:33.452Z",
   "steps": [
     {
       "index": 1,
@@ -28,105 +28,109 @@
       "name": "EnhancedItem dataclass + rarity/ilvl eligibility properties",
       "red": {
         "description": "In `tests/test_sets.py`, build `EnhancedItem(...)` for several frame_type/ilvl combos and assert: frame_type=2 -> is_rare; ilvl 60 and 74 -> is_chaos_eligible, 59 and 75 -> not; ilvl 75 -> is_regal_eligible; ilvl 1 and 59 -> is_chance_eligible; ilvl 60 -> is_exalted_eligible. `uv run pytest` fails (EnhancedItem not importable).",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement `EnhancedItem` in `poecraft/recipe/sets.py` (fields: id, name, type_line, item_level, frame_type, identified, icon, derived_item_class, stash_tab_index, x, y, w, h, influences) with the four eligibility properties plus is_rare. Tests pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 3,
       "name": "filter_stash_items maps raw API item dicts to eligible EnhancedItems",
       "red": {
         "description": "Feed raw item dicts: a chaos-eligible rare ring (icon encodes Rings), a currency item (non-recipe class), an ilvl-59 rare helmet (outside chaos range), and an identified rare helmet with include_identified=False. Assert only the ring is returned, as an EnhancedItem with derived_item_class == ItemClass.RINGS. Fails (function missing).",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement `filter_stash_items(raw_items, recipe_type, include_identified=False)` using `classifier.classify_item`, `RECIPE_ILVL_RANGES[recipe_type]`, rarity == FrameType.RARE, and the identified filter. Passes.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "extract a small `is_eligible(item, recipe_type, include_identified)` helper if it clarifies.",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 4,
       "name": "count_items returns per-class tallies",
       "red": {
         "description": "Given a list of EnhancedItems, assert `count_items` returns dict[ItemClass, int] with correct counts. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement `count_items(items)`. Passes.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 5,
       "name": "generate_sets — empty input yields set_threshold empty sets, all slots missing",
       "red": {
         "description": "With items=[] and set_threshold=2, RecipeType.CHAOS -> completed_sets == 0, len(in_progress) == 2, each set.missing == the 7 chaos slots, missing_classes == the same 7, unassigned_items == []. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement `RecipeSet`, `RecipeStatus` (ADD unassigned_items: list[EnhancedItem]; DROP needs_lower_level), and a `generate_sets` skeleton that creates N empty RecipeSets and derives each set's missing from CHAOS_RECIPE_SLOTS. Passes.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 6,
       "name": "generate_sets — greedy fill, one item per class per set, per-item assignment",
       "red": {
         "description": "Provide 14 items = 2 each of helmet/ring/boots/belt/amulet/gloves/one-hand-weapon (chaos-eligible rares), set_threshold=2 -> completed_sets == 2 and each RecipeSet.items has all 7 ItemClass keys mapped to an EnhancedItem (per-item to set assignment present). Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement greedy fill: iterate items (sorted by class), place each into the first in_progress set still missing that class. Passes.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 7,
       "name": "generate_sets — two-hand weapons sorted first + surplus items tracked",
       "red": {
         "description": "From the Step 5 fixtures, swap in one two-hand weapon and add 2 surplus helmets (4 helmets total, threshold 2): the 2H weapon occupies a weapon slot in a set; the 2 extra helmets are in RecipeStatus.unassigned_items; item_counts reflects totals (helmets == 4). Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Add two-hand-first sort before filling; route overflow items to unassigned_items. Passes.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "collapse any duplication in the fill loop.",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     }
   ],
-  "notes": [],
+  "notes": [
+    "DESIGN DECISION (confirmed with user): faithful count-based recipe model. RecipeSet.items is dict[ItemClass, list[EnhancedItem]] (multi-item slots). A chaos set requires 2 rings, 1 each of {amulet,belt,helmet,gloves,boots,body}, and a shared weapon slot = 2 units (1x TWO_HAND alone, or 2x ONE_HAND). Added RECIPE_SET_REQUIREMENTS + WEAPON_SLOT_REQUIRED_UNITS to types.py. Empty-set missing == ALL_RECIPE_CLASSES (9 classes). RecipeStatus.in_progress holds ALL generated sets (complete + partial); completed_sets is the count of complete ones. Steps 6/7 fixtures revised: a complete set needs 2 rings + 6 singletons + weapon.",
+    "Step 6 note: the full greedy-fill loop was implemented in step 5's GREEN (beyond the 'skeleton' the plan asked for), so step 6's RED test passed immediately. Behavior is correct and the step-6 test locks the 2-complete-sets + per-item assignment behavior. Accepted as-is (option a) rather than reverting working tested code.",
+    "Step 7 note: two-hand-first sort + surplus routing already implemented in step 5, so step 7 RED passed immediately. Added the plan's fixture test (2H fills a slot, 2 surplus helmets, item_counts) PLUS a sort-discriminating test (1x2H + 1x1H, threshold 1) that FAILS if two-hand isn't sorted first — a genuine regression guard. Accepted as-is."
+  ],
   "design": {
     "currentState": "poecraft/recipe/types.py and poecraft/recipe/classifier.py exist and are complete. poecraft/recipe/sets.py does not exist. No tests exist; no test framework in pyproject.toml; no jj/git repo.",
     "desiredState": "poecraft/recipe/sets.py fully implemented and unit-tested: EnhancedItem, RecipeSet, RecipeStatus, filter_stash_items, count_items, generate_sets (with per-item→set assignment and surplus tracking). Full pytest suite green. jj repo initialized with the feature captured as a revision.",
