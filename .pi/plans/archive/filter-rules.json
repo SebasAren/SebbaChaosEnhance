@@ -4,7 +4,7 @@
   "context": "PoECraft v1. Implements the loot-filter manipulation layer in poecraft/filter/{reader,generator,writer}.py. Highlight-only behavior (settled in grill): emit exactly one Show rule — strong style (background/text/border color, MinimapIcon, PlayEffect) — per MISSING item class; NEVER emit Hide; classes that aren't missing are left entirely to the user's existing filter. Consumes RecipeStatus.missing_classes from the recipe-core plan. Section is wrapped in marker comments, injected/replaced idempotently, and removable. Fully unit-testable against tmp_path .filter files — no real filter needed. Depends on recipe-core scaffolding (pytest, tests/, jj repo) and poecraft/recipe/types.py (ItemClass, RecipeType, RECIPE_ILVL_RANGES) which already exists.",
   "architecture": "poecraft/filter/reader.py: MARKER_START, MARKER_END; read_filter(path)->str; split_filter(content)->tuple[before, section, after] (no markers => before='', section='', after=whole). poecraft/filter/generator.py: CLASS_COLORS: dict[ItemClass, {bg,text,border}] (RGBA hex from CRE defaults); CLASS_FILTER_NAMES: dict[ItemClass, str] with quoted display names ('Body Armours', 'One Hand Weapons', 'Two Hand Weapons', plus singulars); DEFAULT_STYLE = ['HasInfluence None', 'Sockets < 6', 'LinkedSockets < 5']; _parse_hex('#RRGGBBAA')->tuple[int,int,int,int]; generate_rule(item_class, recipe_type, include_identified=False)->str (Show, Class '<name>', Rarity Rare, [Identified False unless include_identified], ItemLevel >=/<= from RECIPE_ILVL_RANGES, DEFAULT_STYLE, Set*Color, SetFontSize 40, MinimapIcon 0 Yellow Circle, PlayEffect Yellow Temp); generate_section(missing_classes, recipe_type, include_identified=False)->str (markers + one Show rule per missing class, sorted; never Hide). poecraft/filter/writer.py: write_filter(path, content); update_filter(path, missing_classes, recipe_type, include_identified=False)->bool; remove_chaos_section(path)->bool.",
   "created": "2026-07-22T14:55:42.953Z",
-  "updated": "2026-07-22T15:45:07.880Z",
+  "updated": "2026-07-22T15:48:35.586Z",
   "steps": [
     {
       "index": 1,
@@ -172,9 +172,9 @@
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     }
   ],
   "notes": [],
