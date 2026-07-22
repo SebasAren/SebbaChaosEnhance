@@ -37,7 +37,6 @@ class RateLimitState:
     def __init__(self):
         self.remaining: int = 999
         self.reset_at: float = 0  # timestamp when limit resets
-        self.is_banned: bool = False
 
     def update_from_headers(self, headers: dict) -> None:
         """Parse X-Rate-Limit-* headers."""
@@ -57,7 +56,8 @@ class RateLimitState:
             wait_time = max(0, self.reset_at - time.time())
             logger.warning(
                 "Rate limit reached! Remaining: %d, resets in %.1fs",
-                self.remaining, wait_time,
+                self.remaining,
+                wait_time,
             )
 
     def wait_if_needed(self) -> float:
@@ -98,45 +98,61 @@ class PoeApiClient:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
 
-    async def _get(self, url: str, params: Optional[dict] = None) -> Optional[dict]:
-        """Make an authenticated GET request with rate limit handling."""
-        # Wait if rate limited
-        wait = self._rate_limit.wait_if_needed()
-        if wait > 0:
-            logger.info("Rate limited, waiting %.1fs...", wait)
-            await asyncio.sleep(wait)
+    async def _get(
+        self,
+        url: str,
+        params: Optional[dict] = None,
+        *,
+        max_retries: int = 3,
+    ) -> Optional[dict]:
+        """Authenticated GET with rate-limit handling and 429 backoff/retry.
 
-        if self._rate_limit.is_banned:
-            logger.error("Rate limit ban is active, skipping request")
-            return None
+        Retries up to ``max_retries`` times on 429 Too Many Requests, honoring
+        the Retry-After header. Other non-200 responses (and HTTP errors)
+        return None immediately without retrying.
+        """
+        for attempt in range(max_retries + 1):
+            # Wait if a prior response put us under the rate limit.
+            wait = self._rate_limit.wait_if_needed()
+            if wait > 0:
+                logger.info("Rate limited, waiting %.1fs...", wait)
+                await asyncio.sleep(wait)
 
-        client = await self._get_client()
+            client = await self._get_client()
+            try:
+                resp = await client.get(url, params=params)
+                self._rate_limit.update_from_headers(dict(resp.headers))
 
-        try:
-            resp = await client.get(url, params=params)
-
-            # Update rate limit state from response headers
-            self._rate_limit.update_from_headers(dict(resp.headers))
-
-            if resp.status_code == 200:
-                return resp.json()
-            elif resp.status_code == 429:
-                # Too Many Requests - extract retry-after
-                retry_after = int(resp.headers.get("retry-after", "10"))
-                logger.warning("429 Too Many Requests, retry after %ds", retry_after)
-                self._rate_limit.remaining = 0
-                self._rate_limit.reset_at = time.time() + retry_after
-                return None
-            elif resp.status_code in (401, 403):
-                logger.error("Auth error %d - check your POESESSID", resp.status_code)
-                return None
-            else:
+                if resp.status_code == 200:
+                    return resp.json()
+                if resp.status_code == 429:
+                    retry_after = int(resp.headers.get("retry-after", "10"))
+                    self._rate_limit.remaining = 0
+                    self._rate_limit.reset_at = time.time() + retry_after
+                    if attempt < max_retries:
+                        logger.warning(
+                            "429 Too Many Requests, backing off %ds (attempt %d/%d)",
+                            retry_after,
+                            attempt + 1,
+                            max_retries,
+                        )
+                        continue  # top-of-loop wait_if_needed() sleeps once
+                    logger.warning(
+                        "429 Too Many Requests, giving up after %d retries",
+                        max_retries,
+                    )
+                    return None
+                if resp.status_code in (401, 403):
+                    logger.error(
+                        "Auth error %d - check your POESESSID", resp.status_code
+                    )
+                    return None
                 logger.warning("API returned %d: %s", resp.status_code, resp.text[:200])
                 return None
-
-        except httpx.HTTPError as e:
-            logger.error("HTTP error: %s", e)
-            return None
+            except httpx.HTTPError as e:
+                logger.error("HTTP error: %s", e)
+                return None
+        return None
 
     def _stash_props_url(self, personal: bool = True) -> str:
         """URL for fetching stash tab metadata."""
@@ -218,28 +234,23 @@ class PoeApiClient:
             contents = await self.get_stash_tab_contents(idx)
             result[idx] = contents.items
             logger.info("Fetched tab %d: %d items", idx, len(contents.items))
-
-            # Small delay between requests to be nice to the API
-            if idx != tab_indices[-1]:
-                await asyncio.sleep(0.5)
+            # Small delay between requests to be nice to the API.
+            await asyncio.sleep(0.5)
 
         return result
 
     async def get_leagues(self) -> list[str]:
-        """Fetch the list of active leagues (no auth required).
+        """Fetch the list of active main leagues (public, no auth required).
 
         Returns:
             List of league name strings.
         """
         url = "https://api.pathofexile.com/leagues?type=main&realm=pc"
-        client = await self._get_client()
-
+        data = await self._get(url)
+        if data is None:
+            return []
         try:
-            resp = await client.get(url)
-            if resp.status_code == 200:
-                data = resp.json()
-                return [league["id"] for league in data]
-        except httpx.HTTPError as e:
-            logger.error("Failed to fetch leagues: %s", e)
-
-        return []
+            return [league["id"] for league in data]
+        except (KeyError, TypeError) as e:
+            logger.error("Failed to parse leagues response: %s", e)
+            return []
