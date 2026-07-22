@@ -1,3 +1,7 @@
 {
-  "verify": ["uv run pytest -q"]
+  "verify": [
+    "uv run ruff check .",
+    "uv run ruff format --check .",
+    "uv run pytest -q"
+  ]
 }
