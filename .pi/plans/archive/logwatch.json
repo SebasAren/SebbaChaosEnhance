@@ -4,143 +4,143 @@
   "context": "PoECraft v1. Implements poecraft/logwatch.py: tails the PoE Client.txt log and fires a refresh callback on zone-change lines. Refresh is zone-change-driven ONLY (settled in grill — no polling timer in v1). Verified path on this machine: ~/.local/share/Steam/steamapps/common/Path of Exile/logs/Client.txt (the Proton-prefix Documents/My Games/Path of Exile location is empty). Zone-change line confirmed against the real log: '[INFO Client <pid>] : You have entered <Area Name>.' Adds a Config field client_log_path (default '' => auto-discover the Steam install logs path). Core parsing/tailing is synchronous + unit-testable with fixture files; the async loop is a thin wrapper. Depends on recipe-core scaffolding (pytest, tests/, jj repo).",
   "architecture": "poecraft/logwatch.py: parse_zone_change(line: str) -> str | None — area name for lines matching the You-have-entered pattern, else None. default_log_path() -> Path | None — checks common Steam roots (~/.local/share/Steam, ~/.steam/steam) for steamapps/common/Path of Exile/logs/Client.txt. resolve_log_path(config) -> Path | None — config.client_log_path if set, else default_log_path(). ClientLogWatcher(path, on_zone_change: Callable[[str], Awaitable[None]], poll_interval=0.5): holds last_size; _process_new(text) -> list[str] (pure, testable); _poll() reads appended bytes since last_size, dispatches callback per zone change, guards truncation; async start()/stop(). Config change in poecraft/config.py: add client_log_path: str = '' field.",
   "created": "2026-07-22T14:55:42.987Z",
-  "updated": "2026-07-22T14:55:43.003Z",
+  "updated": "2026-07-22T16:07:28.940Z",
   "steps": [
     {
       "index": 1,
       "name": "parse_zone_change — happy path",
       "red": {
         "description": "In tests/test_logwatch.py, parse_zone_change on a real line '... [INFO Client 340] : You have entered Divided Hideout.' == 'Divided Hideout'. Fails (module missing).",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement poecraft/logwatch.py: parse_zone_change(line)->str|None using regex for the You-have-entered pattern. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 2,
       "name": "parse_zone_change — non-matching lines return None",
       "red": {
         "description": "Chat lines, other INFO lines (e.g. 'Connected to ams.login...'), and blank lines -> None. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Ensure regex strictness. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 3,
       "name": "default_log_path + resolve_log_path — auto-discover (injectable roots)",
       "red": {
         "description": "With a fake Steam root containing common/Path of Exile/logs/Client.txt, default_log_path() returns it; resolve_log_path(config_with_explicit_path) returns the explicit path. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement default_log_path (checks common Steam roots) + resolve_log_path; make the Steam roots list injectable for tests. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 4,
       "name": "Config.client_log_path field (structural)",
       "red": {
         "description": "none",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Add client_log_path: str = '' to Config in poecraft/config.py; update config.example.yaml with the field + comment pointing at the verified Steam path; load_config validates the example.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 5,
       "name": "ClientLogWatcher._process_new — extracts zone changes from appended text",
       "red": {
         "description": "_process_new on a block with one zone-change line among noise returns ['Lioneye area']; a block with no zone change returns []. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement _process_new using parse_zone_change. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 6,
       "name": "ClientLogWatcher — appends-only tail over a fixture file",
       "red": {
         "description": "Write a fixture Client.txt; create a watcher with a recording fake callback; call internal _poll() once (no new data) -> no callback; append a zone-change line; _poll() -> callback called once with the area name. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement size-based tailing + callback dispatch in _poll. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 7,
       "name": "ClientLogWatcher — handles truncation/rotation",
       "red": {
         "description": "Rewrite the fixture file smaller; _poll() resets offset without error and fires no spurious callback. Fails.",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Add truncation guard. Pass.",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     },
     {
       "index": 8,
       "name": "ClientLogWatcher.start/stop async lifecycle (structural)",
       "red": {
         "description": "none",
-        "status": "not_started"
+        "status": "done"
       },
       "green": {
         "description": "Implement async start()/stop(); exercise via an integration test using asyncio + a fixture file + a zone-change append and a tiny poll interval; assert callback fired, then stop() cleanly. (Add pytest-asyncio as a dev dep if needed.)",
-        "status": "not_started"
+        "status": "done"
       },
       "refactor": {
         "description": "",
-        "status": "not_started"
+        "status": "done"
       },
-      "completed": false
+      "completed": true
     }
   ],
   "notes": [],

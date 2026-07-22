@@ -14,6 +14,10 @@ include_identified: false
 # Loot filter
 loot_filter_path: ""  # absolute path to your .filter file
 
+# Path to PoE Client.txt log (empty => auto-discover Steam install)
+# e.g. ~/.local/share/Steam/steamapps/common/Path of Exile/logs/Client.txt
+client_log_path: ""
+
 # Server
 host: "127.0.0.1"
 port: 8420

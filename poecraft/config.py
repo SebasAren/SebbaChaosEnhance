@@ -29,6 +29,9 @@ class Config(BaseModel):
     # Loot filter
     loot_filter_path: str = ""
 
+    # Path to PoE Client.txt log (empty => auto-discover Steam install)
+    client_log_path: str = ""
+
     # Server
     host: str = "127.0.0.1"
     port: int = 8420
