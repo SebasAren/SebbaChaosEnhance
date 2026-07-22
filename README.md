@@ -150,6 +150,24 @@ PoECraft is a from-scratch, native-Linux reimplementation inspired by the
 the zone-change-triggered refresh all follow CRE's design — thanks to the CRE
 team for the concept.
 
+## License
+
+Copyright © 2026 Sebas.
+Chaos Recipe Enhancer is Copyright © 2025 Chaos Recipe Enhancer Team.
+
+PoECraft was developed with [Chaos Recipe Enhancer][cre] (CRE) as a guideline;
+it is free software: you can redistribute it and/or modify it under the terms
+of the [GNU General Public License as published by the Free Software
+Foundation][gpl], either version 3 of the License, or (at your option) any
+later version.
+
+PoECraft is distributed in the hope that it will be useful, but **without any
+warranty**; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE. See the [`LICENSE`](LICENSE) file for details.
+
+[cre]: https://github.com/ChaosRecipeEnhancer/ChaosRecipeEnhancer
+[gpl]: https://www.gnu.org/licenses/gpl-3.0.html
+
 ---
 
 PoECraft is not affiliated with Grinding Gear Games.
