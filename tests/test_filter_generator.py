@@ -6,7 +6,12 @@ import pytest
 
 from poecraft.recipe.types import ItemClass, RecipeType
 
-from poecraft.filter.generator import _parse_hex, generate_rule, generate_section
+from poecraft.filter.generator import (
+    CLASS_COLORS,
+    _parse_hex,
+    generate_rule,
+    generate_section,
+)
 from poecraft.filter.reader import MARKER_END, MARKER_START
 
 
@@ -34,7 +39,7 @@ def test_generate_rule_rings_chaos_contains_all_required_lines() -> None:
         "HasInfluence None",
         "Sockets < 6",
         "LinkedSockets < 5",
-        "SetBackgroundColor 255 150 0 255",
+        "SetBackgroundColor 208 2 27 255",
         "SetFontSize 40",
         "MinimapIcon 0 Yellow Circle",
         "PlayEffect Yellow Temp",
@@ -130,7 +135,9 @@ def test_generate_section_threads_needs_lower_level() -> None:
     assert "ItemLevel <= 74" not in section
 
 
-def test_generate_section_highlight_only_missing_never_hide_wrapped_in_markers() -> None:
+def test_generate_section_highlight_only_missing_never_hide_wrapped_in_markers() -> (
+    None
+):
     section = generate_section({ItemClass.RINGS, ItemClass.BOOTS}, RecipeType.CHAOS)
     assert MARKER_START in section
     assert MARKER_END in section
@@ -147,3 +154,42 @@ def test_generate_section_highlight_only_missing_never_hide_wrapped_in_markers()
             ItemClass.BELTS: "Belts",
         }[non_missing]
         assert f'Class "{non_missing_name}"' not in section
+
+
+JEWELRY = (ItemClass.RINGS, ItemClass.AMULETS, ItemClass.BELTS)
+
+
+def test_jewelry_shares_one_color() -> None:
+    """Rings/amulets/belts are the most important to pick up, so they share a
+    single strong color (red) and stand out from every other slot."""
+    styles = {cls: CLASS_COLORS[cls] for cls in JEWELRY}
+    assert len({tuple(s.items()) for s in styles.values()}) == 1
+    # that shared color is red
+    r, g, b, a = _parse_hex(styles[ItemClass.RINGS]["bg"])
+    assert r > 150 and g < 80 and b < 80
+
+
+@pytest.mark.parametrize("item_class", list(JEWELRY))
+def test_jewelry_rule_uses_red_background(item_class: ItemClass) -> None:
+    rule = generate_rule(item_class, RecipeType.CHAOS)
+    assert "SetBackgroundColor 208 2 27 255" in rule
+
+
+@pytest.mark.parametrize(
+    "item_class",
+    [c for c in ItemClass if c not in JEWELRY],
+)
+def test_non_jewelry_slots_differ_from_jewelry_and_each_other(
+    item_class: ItemClass,
+) -> None:
+    """Every non-jewelry slot is a distinct color, and none reuse jewelry red."""
+    jewelry_bg = CLASS_COLORS[ItemClass.RINGS]["bg"]
+    this_bg = CLASS_COLORS[item_class]["bg"]
+    assert this_bg != jewelry_bg
+    # distinct from every other non-jewelry slot
+    others = [
+        CLASS_COLORS[c]["bg"]
+        for c in ItemClass
+        if c not in JEWELRY and c is not item_class
+    ]
+    assert this_bg not in others

@@ -12,21 +12,32 @@ from poecraft.filter.reader import MARKER_END, MARKER_START
 
 
 # Definition order of ItemClass, used for deterministic rule ordering.
-_CLASS_ORDER: dict[ItemClass, int] = {
-    cls: i for i, cls in enumerate(ItemClass)
-}
+_CLASS_ORDER: dict[ItemClass, int] = {cls: i for i, cls in enumerate(ItemClass)}
 
+
+# Per-slot highlight palette. Each entry maps to a {bg, text, border} style.
+# Jewelry (rings/amulets/belts) all share red: they are the rarest recipe
+# pieces and the most important to spot on the ground, so one strong color
+# makes them pop. Every other slot gets a distinct color so a quick glance
+# tells you which armor/weapon piece a set is still missing.
+_RED = {"bg": "#D0021BFF", "text": "#FFFFFFFF", "border": "#D0021BFF"}
+_BLUE = {"bg": "#2D7FF9FF", "text": "#FFFFFFFF", "border": "#2D7FF9FF"}
+_GREEN = {"bg": "#34A853FF", "text": "#FFFFFFFF", "border": "#34A853FF"}
+_MAGENTA = {"bg": "#C3409FFF", "text": "#FFFFFFFF", "border": "#C3409FFF"}
+_PURPLE = {"bg": "#7B1FA2FF", "text": "#FFFFFFFF", "border": "#7B1FA2FF"}
+_ORANGE = {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"}
+_TEAL = {"bg": "#0097A7FF", "text": "#FFFFFFFF", "border": "#0097A7FF"}
 
 CLASS_COLORS: dict[ItemClass, dict[str, str]] = {
-    ItemClass.RINGS: {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"},
-    ItemClass.AMULETS: {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"},
-    ItemClass.BELTS: {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"},
-    ItemClass.HELMETS: {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"},
-    ItemClass.GLOVES: {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"},
-    ItemClass.BOOTS: {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"},
-    ItemClass.BODY_ARMOURS: {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"},
-    ItemClass.ONE_HAND_WEAPONS: {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"},
-    ItemClass.TWO_HAND_WEAPONS: {"bg": "#FF9600FF", "text": "#FFFFFFFF", "border": "#FF9600FF"},
+    ItemClass.RINGS: _RED,
+    ItemClass.AMULETS: _RED,
+    ItemClass.BELTS: _RED,
+    ItemClass.HELMETS: _BLUE,
+    ItemClass.GLOVES: _GREEN,
+    ItemClass.BOOTS: _MAGENTA,
+    ItemClass.BODY_ARMOURS: _PURPLE,
+    ItemClass.ONE_HAND_WEAPONS: _ORANGE,
+    ItemClass.TWO_HAND_WEAPONS: _TEAL,
 }
 
 # The full argument emitted after `Class ` for each item class. Every class
@@ -48,8 +59,7 @@ CLASS_FILTER_NAMES: dict[ItemClass, str] = {
         '"Claws" "Shields"'
     ),
     ItemClass.TWO_HAND_WEAPONS: (
-        '"Two Hand Swords" "Two Hand Axes" "Two Hand Maces" '
-        '"Staves" "Warstaves" "Bows"'
+        '"Two Hand Swords" "Two Hand Axes" "Two Hand Maces" "Staves" "Warstaves" "Bows"'
     ),
 }
 
