@@ -1,5 +1,7 @@
 """Web UI routes."""
 
+from pathlib import Path
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -8,7 +10,9 @@ from poecraft.config import Config, get_config, save_config
 from poecraft.state import get_state
 
 router = APIRouter()
-templates = Jinja2Templates(directory="poecraft/web/templates")
+# Resolve relative to this module so it works regardless of the process CWD
+# (the installed tool runs from $HOME under systemd, not the project root).
+templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 
 
 @router.get("/", response_class=HTMLResponse)

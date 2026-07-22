@@ -347,6 +347,23 @@ def test_dashboard_renders_grid_and_endpoint_wiring() -> None:
     assert "set_index" in html
 
 
+def test_dashboard_renders_regardless_of_cwd(tmp_path, monkeypatch) -> None:
+    """Template lookup must not depend on process CWD.
+
+    The installed tool runs from $HOME (e.g. under systemd), so a relative
+    templates directory would fail. Reproduce by chdir-ing away from the
+    project root before rendering the dashboard.
+    """
+    monkeypatch.chdir(tmp_path)
+    _reset_state()
+    client = _client()
+
+    resp = client.get("/")
+
+    assert resp.status_code == 200
+    assert 'id="grid"' in resp.text
+
+
 def test_overlay_redirects_to_dashboard() -> None:
     client = _client()
 
