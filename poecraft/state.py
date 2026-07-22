@@ -26,22 +26,40 @@ class RecipeState:
         # SSE subscribers: each connected /api/events client owns one queue,
         # which we push the latest payload onto whenever the state changes.
         self._subscribers: list[asyncio.Queue[dict]] = []
+        # Serializes overlapping refresh cycles (logwatch zone change, manual
+        # button, periodic loop) so we never fire two concurrent stash fetches
+        # — which would race on the API client and double-hit the rate limit.
+        self._refresh_lock = asyncio.Lock()
 
-    async def refresh(self, client: Any, config: Config, filter_writer: Any) -> RecipeStatus:
+    async def refresh(
+        self, client: Any, config: Config, filter_writer: Any
+    ) -> RecipeStatus:
         """Run one refresh cycle and store the resulting status.
 
         ``client`` must expose ``async get_all_selected_tabs(indices)``; the
         ``filter_writer`` must expose ``update_filter(path, missing_classes,
         recipe_type, include_identified, needs_lower_level)``.
+
+        Holds ``_refresh_lock`` for the whole cycle so concurrent triggers
+        (zone change, manual button, periodic timer) queue instead of racing.
         """
+        async with self._refresh_lock:
+            return await self._refresh_locked(client, config, filter_writer)
+
+    async def _refresh_locked(
+        self, client: Any, config: Config, filter_writer: Any
+    ) -> RecipeStatus:
         tabs = await client.get_all_selected_tabs(config.stash_tabs)
 
         raw_items: list[dict] = []
-        for items in tabs.values():
+        for tab_index, items in tabs.items():
             for item in items:
-                raw_items.append(
-                    item.model_dump() if hasattr(item, "model_dump") else dict(item)
-                )
+                # The PoE API embeds no per-item tab index; it's known from
+                # the request. Inject it here so EnhancedItem.stash_tab_index
+                # reflects reality (previously always 0 via a phantom key).
+                data = item.model_dump() if hasattr(item, "model_dump") else dict(item)
+                data["stashTabindex"] = tab_index
+                raw_items.append(data)
 
         recipe_type = RecipeType(config.recipe_type)
         status = generate_sets(
@@ -87,7 +105,9 @@ class RecipeState:
             "item_counts": {cls.value: n for cls, n in status.item_counts.items()},
             "missing_classes": sorted(cls.value for cls in status.missing_classes),
             "grid": status.to_grid(),
-            "last_refresh": self.last_refresh.isoformat() if self.last_refresh else None,
+            "last_refresh": self.last_refresh.isoformat()
+            if self.last_refresh
+            else None,
         }
 
     def subscribe(self) -> asyncio.Queue[dict]:
