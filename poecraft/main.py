@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
-import sys
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -47,6 +46,7 @@ async def lifespan(app: FastAPI):
     watcher_task: asyncio.Task | None = None
     log_path = resolve_log_path(config)
     if log_path is not None:
+
         async def on_zone_change(area: str) -> None:
             logger.info("Zone change to %s — refreshing", area)
             try:
@@ -71,6 +71,32 @@ async def lifespan(app: FastAPI):
         app.state.watcher = None
         logger.info("No Client.txt resolved; logwatch disabled")
 
+    # Periodic refresh fallback: fires every refresh_interval seconds. This is
+    # the only auto-refresh when logwatch is disabled (no Client.txt), and a
+    # safety net otherwise — RecipeState._refresh_lock serializes overlaps so
+    # it can run alongside the zone-change watcher without double-fetching.
+    # 0 disables it (manual refresh only).
+    periodic_task: asyncio.Task | None = None
+    if config.refresh_interval > 0:
+
+        async def periodic_refresh() -> None:
+            while True:
+                interval = get_config().refresh_interval
+                await asyncio.sleep(interval if interval > 0 else 30)
+                try:
+                    await state.refresh(
+                        await resolve_client(app.state),
+                        get_config(),
+                        filter_writer,
+                    )
+                except Exception as exc:  # noqa: BLE001 — don't kill the loop
+                    logger.warning("Periodic refresh failed: %s", exc)
+
+        periodic_task = asyncio.create_task(periodic_refresh())
+        logger.info("Periodic refresh every %ds", config.refresh_interval)
+    else:
+        logger.info("Periodic refresh disabled (refresh_interval=0)")
+
     # Initial refresh on startup (defensive: never crash the app on API/filter errors).
     try:
         await state.refresh(client, config, filter_writer)
@@ -80,6 +106,12 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    if periodic_task is not None:
+        periodic_task.cancel()
+        try:
+            await periodic_task
+        except asyncio.CancelledError:
+            pass
     if watcher is not None and watcher_task is not None:
         await watcher.stop()
         watcher_task.cancel()
@@ -87,7 +119,12 @@ async def lifespan(app: FastAPI):
             await watcher_task
         except asyncio.CancelledError:
             pass
-    await client.close()
+    # Close the *live* client — resolve_client may have replaced the startup
+    # one mid-session (on credential change), so app.state.client is authoritative.
+    # Guard for the duck-typed fakes used in tests (and any client without close).
+    live_client = app.state.client
+    if isinstance(live_client, PoeApiClient):
+        await live_client.close()
     logger.info("PoECraft shutting down")
 
 
